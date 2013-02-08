@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="http://maven.apache.org/POM/4.0.0">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.jboss.totp</groupId>
+    <artifactId>totpme</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>TOTP ME</name>
+	<url>https://github.com/kwart/totp-me</url>
+
+ 	<organization>
+ 		<name>Josef Cacek</name>
+	</organization>
+
+    <properties>
+        <microemulator.version>2.0.3</microemulator.version><!--me-version-->
+
+        <wtk.home>/home/jcacek/Java/WTK2.5.2</wtk.home>
+
+        <j2me.midlet.vendor>${project.organization.name}</j2me.midlet.vendor>
+        <j2me.midlet.name>${project.name}</j2me.midlet.name>
+        <j2me.midlet.version>1.0-SNAPSHOT</j2me.midlet.version>
+        <j2me.midlet.configuration>CLDC-1.1</j2me.midlet.configuration>
+        <j2me.midlet.profile>MIDP-2.0</j2me.midlet.profile>
+    </properties>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>org.microemu</groupId>
+            <artifactId>microemulator</artifactId>
+            <version>${microemulator.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+		  <groupId>org.bouncycastle</groupId>
+		  <artifactId>lcrypto-j2me</artifactId>
+		  <version>1.45</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <defaultGoal>install</defaultGoal>
+		<finalName>totp</finalName>
+        <plugins>
+
+		   <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.3</source>
+                    <target>1.1</target>
+                    <compilerArguments>
+                        <bootclasspath>${settings.localRepository}/org/microemu/cldcapi11/${microemulator.version}/cldcapi11-${microemulator.version}.jar${path.separator}${settings.localRepository}/org/microemu/midpapi20/${microemulator.version}/midpapi20-${microemulator.version}.jar</bootclasspath>
+                    </compilerArguments>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.microemu</groupId>
+                        <artifactId>midpapi20</artifactId>
+                        <version>${microemulator.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <plugin>
+                <groupId>com.pyx4me</groupId>
+                <artifactId>j2me-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>package</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <wtkHome>${wtk.home}</wtkHome>
+                    <proguardInclude>proguard.conf</proguardInclude>
+                    <proguard>true</proguard>
+                    <obfuscate>true</obfuscate>
+                    <jadAttributes>
+                        <MIDlet-Vendor>${project.organization.name}</MIDlet-Vendor>
+                        <Created-By>Josef Cacek</Created-By>
+                    </jadAttributes>
+                    <midlets>
+						<!-- for each MIDlet entry-point, simply reiterate this section -->
+                        <MIDlet>
+                            <name>TOTP</name>
+                            <icon>/vass2.png</icon>
+                            <class>org.jboss.totp.TOTPMIDlet</class>
+                        </MIDlet>
+                    </midlets>
+                    <!-- If you are going to use Microemulator instead of WTK
+                    <useWtkLibs>false</useWtkLibs>
+                    <libs>
+                        <lib>${settings.localRepository}/org/microemu/cldcapi11/${microemulator.version}/cldcapi11-${microemulator.version}.jar</lib>
+                        <lib>${settings.localRepository}/org/microemu/midpapi20/${microemulator.version}/midpapi20-${microemulator.version}.jar</lib>
+                    </libs>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.microemu</groupId>
+                            <artifactId>microemulator</artifactId>
+                            <exclude>true</exclude>
+                        </dependency>
+                    </dependencies>
+                    -->
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+	<repositories>
+		<repository>
+		<id>lcrypto</id>
+		<url>http://jinahya-files.googlecode.com/svn/maven/2/repo/</url>
+		</repository>
+	</repositories>
+</project>
+
