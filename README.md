@@ -2,8 +2,10 @@
 
 Java ME TOTP authenticator - based on gauthj2me project. 
 
-The gauthj2me doesn't work on my Siemens S75, therefor I've created this new project, which works just fine. :-)
- 
+The gauthj2me doesn't work on my Siemens S75, therefor I've created this project, which works just fine. :-)
+
+Current version supports SHA-1 (160 bits key) and 6 digit PINs. The time step is configurable.
+
 ## How to get it
 
 You should have [git](http://git-scm.com/) installed
@@ -22,6 +24,20 @@ You need to have [Maven](http://maven.apache.org/) installed
 ## How to install it
 
 Copy the produced `totp-me.jar` from the `target` folder to your device.
+
+## How to use it
+
+You either have already a secret key, then fill it as Base32 encoded String after the start (Options 
+form is displayed if no key is set already). Or you can generate the secret key directly by the application and then
+fill it as a shared secret in the authentication server.
+
+### Generate new secret key
+
+ * choose `Key generator` from the application menu - it will switch you to screen for generating the new key
+ * use `New key` command to generate a new key, you can use it more times if you are not satisfied with the generated value
+ * fill the `HEX` value in you authentication server configuration
+ * press `OK` command and you will be switched to the main screen, where the PIN is already present 
+ * _synchronize the authentication server with your token now_
 
 ## License
 
