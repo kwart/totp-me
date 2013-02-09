@@ -27,6 +27,8 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import javax.microedition.lcdui.Alert;
+import javax.microedition.lcdui.AlertType;
 import javax.microedition.lcdui.Command;
 import javax.microedition.lcdui.CommandListener;
 import javax.microedition.lcdui.Display;
@@ -58,18 +60,22 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private static final String STORE_CONFIG = "config";
 	private static final String STORE_KEY = "key";
 
-	private static final String base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+	private static final String BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
-	private static final int[] base32Lookup = { 0xFF, 0xFF, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF,
-			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C,
-			0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-			0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
-			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	private static final int[] BASE32_LOOKUP = { 0xFF, 0xFF, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0xFF, 0xFF, 0xFF,
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+			0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0xFF, 0xFF, 0xFF, 0xFF,
+			0xFF, 0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+			0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-	private static char[] hex_table = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+	private static final char[] hex_table = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
+			'e', 'f' };
 
-	private byte[] secretKey;
-	private int timeStep = 30;
+	private static final int DEFAULT_TIMESTEP = 30;
+	private static final byte[] DEFAULT_SECRET = null;
+
+	private byte[] secretKey = DEFAULT_SECRET;
+	private int timeStep = DEFAULT_TIMESTEP;
 
 	private Command cmdOK = new Command("OK", Command.OK, 1);
 	private Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
@@ -78,6 +84,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private Command cmdExit = new Command("Exit", Command.CANCEL, 1);
 	private Command cmdGenerator = new Command("Key generator", Command.SCREEN, 2);
 	private Command cmdNewKey = new Command("New key", Command.SCREEN, 1);
+	private Command cmdReset = new Command("Default values", Command.SCREEN, 3);
 
 	private final StringItem siKeyHex = new StringItem("HEX:", null);
 	private final StringItem siKeyBase32 = new StringItem("Base32:", null);
@@ -85,12 +92,51 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final TextField tfSecret = new TextField("Secret key (Base32):", null, 64, TextField.ANY);
 	private final TextField tfTimeStep = new TextField("Time step (sec):", null, 3, TextField.NUMERIC);
 
-	private final MainForm fMain = new MainForm();
-	private final OptionsForm fOptions = new OptionsForm();
-	private final GeneratorForm fGenerator = new GeneratorForm();
+	private final Alert alInvalid = new Alert(
+			"Warning",
+			"Invalid input! Base32 encoded secret key must have 32 characters and the time step value has to be greater than 0.",
+			null, AlertType.ALARM);
+
+	private final Form fMain = new Form("TOTP");
+	private final Form fOptions = new Form("TOTP configuration");
+	private final Form fGenerator = new Form("Key generator");
 
 	private final Timer timer = new Timer();
 	private final RefreshPinTask refreshPinTask = new RefreshPinTask();
+
+	private final Random rand = new Random();
+
+	// Constructors ----------------------------------------------------------
+
+	public TOTPMIDlet() {
+
+		// Main display
+		fMain.append(siPin);
+		fMain.addCommand(cmdExit);
+		fMain.addCommand(cmdOptions);
+		fMain.addCommand(cmdGenerator);
+		fMain.setCommandListener(this);
+
+		// Key generator
+		fGenerator.append(siKeyHex);
+		fGenerator.append(siKeyBase32);
+		fGenerator.addCommand(cmdGeneratorOK);
+		fGenerator.addCommand(cmdNewKey);
+		fGenerator.setCommandListener(this);
+
+		// Configuration display
+		fOptions.append(tfSecret);
+		fOptions.append(tfTimeStep);
+		fOptions.addCommand(cmdOK);
+		fOptions.addCommand(cmdCancel);
+		fOptions.addCommand(cmdGenerator);
+		fOptions.addCommand(cmdReset);
+		fOptions.setCommandListener(this);
+
+		// set alert
+		alInvalid.setTimeout(Alert.FOREVER);
+
+	}
 
 	// Public methods --------------------------------------------------------
 
@@ -99,11 +145,12 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			load();
 			timer.schedule(refreshPinTask, 0L, 1000L);
 			tfTimeStep.setString(Integer.toString(timeStep));
+			final Display display = Display.getDisplay(this);
 			if (getSecretKey() == null) {
-				Display.getDisplay(this).setCurrent(fOptions);
+				display.setCurrent(fOptions);
 			} else {
 				tfSecret.setString(base32Encode(secretKey));
-				Display.getDisplay(this).setCurrent(fMain);
+				display.setCurrent(fMain);
 			}
 		} catch (Exception e) {
 			debugErr("TOTPMIDlet.startApp() - " + e.getMessage());
@@ -128,16 +175,21 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	public void commandAction(Command aCmd, Displayable aDisp) {
 		debug("Options - Command action " + aCmd);
+		final Display display = Display.getDisplay(this);
 		if (aCmd == cmdCancel) {
 			final String base32Encode = base32Encode(getSecretKey());
 			tfSecret.setString(base32Encode != null ? base32Encode : "");
 			tfTimeStep.setString(Integer.toString(timeStep));
-			Display.getDisplay(this).setCurrent(fMain);
+			display.setCurrent(fMain);
 		} else if (aCmd == cmdOK) {
-			setSecretKey(base32Decode(tfSecret.getString()));
-			timeStep = Integer.parseInt(tfTimeStep.getString());
-			refreshPinTask.run();
-			Display.getDisplay(this).setCurrent(fMain);
+			if (validateInput()) {
+				setSecretKey(base32Decode(tfSecret.getString()));
+				timeStep = Integer.parseInt(tfTimeStep.getString());
+				refreshPinTask.run();
+				display.setCurrent(fMain);
+			} else {
+				display.setCurrent(alInvalid, fOptions);
+			}
 		} else if (aCmd == cmdGenerator) {
 			byte[] key = getSecretKey();
 			//just in case we're comming from OptionsForm
@@ -145,7 +197,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			//set current key
 			siKeyHex.setText(key == null ? "" : toHexString(key, 0, key.length));
 			siKeyBase32.setText(base32Encode(key));
-			Display.getDisplay(this).setCurrent(fGenerator);
+			display.setCurrent(fGenerator);
 		} else if (aCmd == cmdNewKey) {
 			byte[] newKey = generateNewKey();
 			setSecretKey(newKey);
@@ -153,9 +205,15 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			siKeyBase32.setText(base32Encode(newKey));
 			tfSecret.setString(siKeyBase32.getText());
 		} else if (aCmd == cmdGeneratorOK) {
-			Display.getDisplay(this).setCurrent(fMain);
+			display.setCurrent(fMain);
 		} else if (aCmd == cmdOptions) {
-			Display.getDisplay(this).setCurrent(fOptions);
+			display.setCurrent(fOptions);
+		} else if (aCmd == cmdReset) {
+			timeStep = DEFAULT_TIMESTEP;
+			secretKey = DEFAULT_SECRET;
+			final String base32Encode = base32Encode(getSecretKey());
+			tfSecret.setString(base32Encode != null ? base32Encode : "");
+			tfTimeStep.setString(Integer.toString(timeStep));
 		} else if (aCmd == cmdExit) {
 			destroyApp(false);
 		}
@@ -169,6 +227,33 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	private synchronized void setSecretKey(byte[] secretKey) {
 		this.secretKey = secretKey;
+	}
+
+	private boolean validateInput() {
+		String str = tfSecret.getString();
+		if (str == null) {
+			str = "";
+		} else {
+			final StringBuffer sb = new StringBuffer();
+			str = str.toUpperCase().replace('1', 'L').replace('0', 'O');
+			for (int i = 0; i < str.length(); i++) {
+				char ch = str.charAt(i);
+				if (BASE32_CHARS.indexOf(ch) >= 0) {
+					sb.append(ch);
+				}
+			}
+			str = sb.toString();
+		}
+		tfSecret.setString(str);
+
+		int step = 0;
+		try {
+			step = Integer.parseInt(tfTimeStep.getString());
+		} catch (NumberFormatException e) {
+			tfTimeStep.setString(Integer.toString(DEFAULT_TIMESTEP));
+		}
+
+		return (str.length() == 0 || str.length() == 32) && step > 0;
 	}
 
 	private void load() throws Exception {
@@ -374,7 +459,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				if (index == 0)
 					i++;
 			}
-			base32.append(base32Chars.charAt(digit));
+			base32.append(BASE32_CHARS.charAt(digit));
 		}
 
 		return base32.toString();
@@ -388,7 +473,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 */
 	private static byte[] base32Decode(final String aBase32) {
 		if (aBase32 == null || aBase32.length() == 0)
-			return new byte[0];
+			return null;
 		final String base32 = aBase32.toUpperCase();
 		int i, index, lookup, offset, digit;
 		byte[] bytes = new byte[base32.length() * 5 / 8];
@@ -397,11 +482,11 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			lookup = base32.charAt(i) - '0';
 
 			/* Skip chars outside the lookup table */
-			if (lookup < 0 || lookup >= base32Lookup.length) {
+			if (lookup < 0 || lookup >= BASE32_LOOKUP.length) {
 				continue;
 			}
 
-			digit = base32Lookup[lookup];
+			digit = BASE32_LOOKUP[lookup];
 
 			/* If this digit is not in the table, ignore it */
 			if (digit == 0xFF) {
@@ -470,7 +555,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	private byte[] generateNewKey() {
 		byte[] result = new byte[20];
-		Random rand = new Random();
 		for (int i = 0, len = result.length; i < len;)
 			for (int rnd = rand.nextInt(), n = Math.min(len - i, 4); n-- > 0; rnd >>= 8)
 				result[i++] = (byte) rnd;
@@ -478,51 +562,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	}
 
 	// Embedded classes ------------------------------------------------------
-
-	/**
-	 * Configuration display.
-	 */
-	private class OptionsForm extends Form {
-
-		public OptionsForm() {
-			super("TOTP configuration");
-			append(tfSecret);
-			append(tfTimeStep);
-			addCommand(cmdOK);
-			addCommand(cmdCancel);
-			addCommand(cmdGenerator);
-			setCommandListener(TOTPMIDlet.this);
-		}
-	}
-
-	/**
-	 * Main display.
-	 */
-	private class MainForm extends Form {
-
-		public MainForm() {
-			super("TOTP");
-			append(siPin);
-			addCommand(cmdExit);
-			addCommand(cmdOptions);
-			addCommand(cmdGenerator);
-			setCommandListener(TOTPMIDlet.this);
-		}
-
-	}
-
-	private class GeneratorForm extends Form {
-
-		public GeneratorForm() {
-			super("Key generator");
-			append(siKeyHex);
-			append(siKeyBase32);
-			addCommand(cmdGeneratorOK);
-			addCommand(cmdNewKey);
-			setCommandListener(TOTPMIDlet.this);
-		}
-
-	}
 
 	/**
 	 * Task for refreshing the PIN.
