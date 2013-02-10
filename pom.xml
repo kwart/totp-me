@@ -31,7 +31,6 @@
     </properties>
 
     <dependencies>
-
         <dependency>
             <groupId>org.microemu</groupId>
             <artifactId>microemulator</artifactId>
@@ -111,6 +110,24 @@
                     </dependencies>
                     -->
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>distribution</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/main/assembly/assembly.xml</descriptor>
+                            </descriptors>
+                            <finalName>jboss-as-quickstarts-${project.version}</finalName>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

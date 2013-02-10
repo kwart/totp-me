@@ -1,10 +1,6 @@
 # TOTP for Java ME
 
-Java ME TOTP authenticator - based on gauthj2me project. 
-
-The gauthj2me doesn't work on my Siemens S75, therefor I've created this project, which works just fine. :-)
-
-Current version supports SHA-1 (160 bits key) and 6 digit PINs. The time step is configurable.
+Java ME TOTP (RFC 6238) authenticator. 
 
 ## How to get it
 
