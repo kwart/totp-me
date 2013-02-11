@@ -19,10 +19,16 @@ Key (and only) features:
  * input validation
  * key generator with Base32 and HEX output
 
+## Screenshots
+
+![Main screen](http://c.fsdn.com/con/app/proj/totpme/screenshots/totp-me-main.png)
+![Options screen](http://c.fsdn.com/con/app/proj/totpme/screenshots/totp-me-options.png)
+![Key generator](http://c.fsdn.com/con/app/proj/totpme/screenshots/totp-me-key-generator.png)
+
 ## How to install it
 
 Unzip files from the distribution package and copy `totp-me.jar` to your device which supports Java ME.
-Some devices also need the description file `totp-me.jad` to be copied together with the JAR.
+Some devices may also need the description file `totp-me.jad` to be copied together with the JAR.
 
 ## How to use it
 
