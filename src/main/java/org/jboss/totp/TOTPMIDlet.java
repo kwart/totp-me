@@ -425,7 +425,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private void saveConfig(DataOutput aDos) throws Exception {
 		aDos.writeInt(Integer.parseInt(tfTimeStep.getString()));
 		aDos.writeInt(chgHmacAlgorithm.getSelectedIndex());
-		aDos.writeByte(Integer.parseInt(tfTimeStep.getString()));
+		aDos.writeByte(Integer.parseInt(tfDigits.getString()));
 	}
 
 	/**
