@@ -90,7 +90,7 @@
 						<!-- for each MIDlet entry-point, simply reiterate this section -->
 						<MIDlet>
 							<name>TOTP</name>
-							<icon>/vass2.png</icon>
+							<icon>/lock16.png</icon>
 							<class>org.jboss.totp.TOTPMIDlet</class>
 						</MIDlet>
 					</midlets>
