@@ -4,7 +4,20 @@ Java ME TOTP (RFC 6238) authenticator.
 
 ## Download
 
-Download the distribution package from the [SourceForge project pages](https://sourceforge.net/projects/totpme/files/).
+Download the [latest binaries](https://sourceforge.net/projects/totpme/files/latest/download) 
+from the [SourceForge project pages](https://sourceforge.net/projects/totpme/).
+
+## Features
+
+Key (and only) features:
+
+ * configurable parameters
+   - secret key (shared)
+   - digest algorithm: SHA-1 (default), SHA-256, SHA-512
+   - number of digits (default is 6)
+   - time step (default is 30)
+ * input validation
+ * key generator with Base32 and HEX output
 
 ## How to install it
 
