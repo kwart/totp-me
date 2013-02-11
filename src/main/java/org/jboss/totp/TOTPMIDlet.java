@@ -466,11 +466,12 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				| ((hash[off + 3] & 0xff));
 
 		// use requested number of digits
+		final byte[] digitsArray = new byte[digits];
 		for (int i = 0; i < digits; i++) {
-			msg[digits - 1 - i] = (byte) ('0' + (char) (binary % 10));
+			digitsArray[digits - 1 - i] = (byte) ('0' + (char) (binary % 10));
 			binary /= 10;
 		}
-		return new String(msg, 0, digits);
+		return new String(digitsArray, 0, digits);
 	}
 
 	/**
