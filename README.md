@@ -2,24 +2,14 @@
 
 Java ME TOTP (RFC 6238) authenticator. 
 
-## How to get it
+## Download
 
-You should have [git](http://git-scm.com/) installed
-
-	$ git clone git://github.com/kwart/topt-me.git
-
-or you can download [current sources as a zip file](https://github.com/kwart/totp-me/archive/master.zip)
-
-## How to build it
-
-You need to have [Maven](http://maven.apache.org/) installed
-
-	$ cd totp-me
-	$ mvn clean install -Dwtk.home=[YourWTKinstallationPath]
+Download the distribution package from the [SourceForge project pages](https://sourceforge.net/projects/totpme/files/).
 
 ## How to install it
 
-Copy the produced `totp-me.jar` from the `target` folder to your device.
+Unzip files from the distribution package and copy `totp-me.jar` to your device which supports Java ME.
+Some devices also need the description file `totp-me.jad` to be copied together with the JAR.
 
 ## How to use it
 
@@ -29,11 +19,32 @@ fill it as a shared secret in the authentication server.
 
 ### Generate new secret key
 
- * choose `Key generator` from the application menu - it will switch you to screen for generating the new key
+ * choose your preferred digest algorithm in the `Options` screen (the default is `SHA-1`)
+ * choose `Key generator` from the menu - it will switch you to screen for generating the new key
  * use `New key` command to generate a new key, you can use it more times if you are not satisfied with the generated value
  * fill the `HEX` value in you authentication server configuration
- * press `OK` command and you will be switched to the main screen, where the PIN is already present 
- * _synchronize the authentication server with your token now_
+ * press `OK` command and you will be switched back to the `Options` screen; confirm your configuration and press `OK` command again
+ * if no problem occurs, you are switched to the main application screen, where the PIN is already present 
+ * _you can synchronize the authentication server with your token now_
+
+## Development
+
+You can simply build the software yourself.
+
+### How to get the sources
+
+You should have [git](http://git-scm.com/) installed
+
+	$ git clone git://github.com/kwart/topt-me.git
+
+or you can download [current sources as a zip file](https://github.com/kwart/totp-me/archive/master.zip)
+
+### How to build it
+
+You need to have [Maven](http://maven.apache.org/) installed
+
+	$ cd totp-me
+	$ mvn clean install -Dwtk.home=[YourWTKinstallationPath]
 
 ## License
 
