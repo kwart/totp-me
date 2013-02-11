@@ -97,7 +97,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	private final StringItem siKeyHex = new StringItem("HEX", null);
 	private final StringItem siKeyBase32 = new StringItem("Base32", null);
-	private final StringItem siPin = new StringItem("PIN", null);
+	private final StringItem siToken = new StringItem("Token", null);
 	private final TextField tfSecret = new TextField("Secret key (Base32)", null, 105, TextField.ANY);
 	private final TextField tfTimeStep = new TextField("Time step (sec)", null, 3, TextField.NUMERIC);
 	private final TextField tfDigits = new TextField("Number of digits", null, 2, TextField.NUMERIC);
@@ -120,7 +120,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	public TOTPMIDlet() {
 
 		// Main display
-		fMain.append(siPin);
+		fMain.append(siToken);
 		fMain.addCommand(cmdExit);
 		fMain.addCommand(cmdOptions);
 		fMain.addCommand(cmdGenerator);
@@ -651,7 +651,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		public final void run() {
 			final String newToken = genToken();
 			debug(newToken);
-			siPin.setText(newToken);
+			siToken.setText(newToken);
 		}
 	}
 }
