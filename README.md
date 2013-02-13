@@ -63,7 +63,13 @@ or you can download [current sources as a zip file](https://github.com/kwart/tot
 You need to have [Maven](http://maven.apache.org/) installed
 
 	$ cd totp-me
-	$ mvn clean install -Dwtk.home=[YourWTKinstallationPath]
+	$ mvn clean package
+
+### How to run it in the Microemulator
+
+Just use `exec:java` goal after you've successfully built the project 
+
+	$ mvn exec:java
 
 ## License
 
