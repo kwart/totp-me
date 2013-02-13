@@ -309,7 +309,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				warnings.append("\n");
 			warnings.append("Time step must be positive number.");
 		}
-		gauValidity.setMaxValue(step > 1 ? step - 1 : Gauge.INDEFINITE);
+		gauValidity.setMaxValue((keyLen > 0 && step > 1) ? step - 1 : Gauge.INDEFINITE);
 
 		int digits = 0;
 		try {
@@ -389,6 +389,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 					tmpRS.setRecord(1, key, 0, key.length);
 				}
 			}
+		} catch (RecordStoreNotFoundException e) {
+			// OK - can't delete if doesn't exist
 		} finally {
 			if (tmpRS != null) {
 				tmpRS.closeRecordStore();
@@ -426,7 +428,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 */
 	private void loadConfig(DataInput aDis) throws Exception {
 		final int timeStep = aDis.readInt();
-		gauValidity.setMaxValue(timeStep > 1 ? timeStep - 1 : Gauge.INDEFINITE);
+		final boolean hasKey = tfSecret.getString() != null && tfSecret.getString().length() > 0;
+		gauValidity.setMaxValue((hasKey && timeStep > 1) ? timeStep - 1 : Gauge.INDEFINITE);
 		tfTimeStep.setString(String.valueOf(timeStep));
 		chgHmacAlgorithm.setSelectedIndex(timeStep, true);
 		tfDigits.setString(String.valueOf(aDis.readByte()));
@@ -459,7 +462,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 		// generate 8 byte HOTP counter value (RFC 4226)
 		final byte msg[] = new byte[8];
-		// time steps since the Epoch
 		for (int i = 0; i < 8; i++) {
 			msg[7 - i] = (byte) (counter >>> (i * 8));
 		}
@@ -671,12 +673,14 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			if (timeStep > 0) {
 				final long currentTimeSec = System.currentTimeMillis() / 1000L;
 				final long counter = currentTimeSec / timeStep;
+				newToken = genToken(counter);
 				if (timeStep == 1) {
+					remainSec = Gauge.INCREMENTAL_UPDATING;
+				} else if ("".equals(newToken)) {
 					remainSec = Gauge.INCREMENTAL_IDLE;
 				} else {
 					remainSec = (int) (timeStep - 1 - currentTimeSec % timeStep);
 				}
-				newToken = genToken(counter);
 			} else {
 				remainSec = 0;
 			}
