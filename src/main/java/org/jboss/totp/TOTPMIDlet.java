@@ -36,6 +36,8 @@ import javax.microedition.lcdui.CommandListener;
 import javax.microedition.lcdui.Display;
 import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Form;
+import javax.microedition.lcdui.Gauge;
+import javax.microedition.lcdui.Item;
 import javax.microedition.lcdui.StringItem;
 import javax.microedition.lcdui.TextField;
 import javax.microedition.midlet.MIDlet;
@@ -98,6 +100,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final StringItem siKeyHex = new StringItem("HEX", null);
 	private final StringItem siKeyBase32 = new StringItem("Base32", null);
 	private final StringItem siToken = new StringItem("Token", null);
+	private final Gauge validity = new Gauge (null, false, DEFAULT_TIMESTEP, DEFAULT_TIMESTEP);
 	private final TextField tfSecret = new TextField("Secret key (Base32)", null, 105, TextField.ANY);
 	private final TextField tfTimeStep = new TextField("Time step (sec)", null, 3, TextField.NUMERIC);
 	private final TextField tfDigits = new TextField("Number of digits", null, 2, TextField.NUMERIC);
@@ -114,18 +117,22 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	private HMac hmac;
 	private final Random rand = new Random();
-
-	// Constructors ----------------------------------------------------------
+	private int period;
+	
+    // Constructors ----------------------------------------------------------
 
 	public TOTPMIDlet() {
 
 		// Main display
 		fMain.append(siToken);
+		fMain.append(validity);
 		fMain.addCommand(cmdExit);
 		fMain.addCommand(cmdOptions);
 		fMain.addCommand(cmdGenerator);
 		fMain.setCommandListener(this);
-
+		
+		validity.setLayout(validity.getLayout() | Item.LAYOUT_CENTER);
+		
 		// Key generator
 		fGenerator.append(siKeyHex);
 		fGenerator.append(siKeyBase32);
@@ -160,7 +167,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	public void startApp() {
 		try {
 			load();
-			timer.schedule(refreshPinTask, 0L, 1000L);
 			final Display display = Display.getDisplay(this);
 			final String secret = tfSecret.getString();
 			if (secret == null || secret.length() == 0) {
@@ -169,6 +175,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				// use validation - to check loaded data
 				commandAction(cmdOK, null);
 			}
+			validity.setMaxValue(period);
+			timer.schedule(refreshPinTask, 0L, 1000L);
+
 		} catch (Exception e) {
 			debugErr("TOTPMIDlet.startApp() - " + e.getMessage());
 			error(e);
@@ -296,13 +305,15 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			step = Integer.parseInt(tfTimeStep.getString());
 		} catch (NumberFormatException e) {
 			tfTimeStep.setString(Integer.toString(DEFAULT_TIMESTEP));
+			step = DEFAULT_TIMESTEP;
 		}
 		if (step <= 0) {
 			if (warnings.length() > 0)
 				warnings.append("\n");
 			warnings.append("Time step must be positive number.");
 		}
-
+		period = step;
+		
 		int digits = 0;
 		try {
 			digits = Integer.parseInt(tfDigits.getString());
@@ -648,10 +659,18 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 */
 	private class RefreshPinTask extends TimerTask {
 
+		private int counter;
+
 		public final void run() {
-			final String newToken = genToken();
-			debug(newToken);
-			siToken.setText(newToken);
+			if (counter-- > 0) {
+				validity.setValue(validity.getValue() - 1);
+			} else {
+				final String newToken = genToken();
+				debug(newToken);
+				siToken.setText(newToken);
+				counter = period;
+				validity.setValue(period);
+			}
 		}
 	}
 }
