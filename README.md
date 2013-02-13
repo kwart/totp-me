@@ -43,7 +43,7 @@ fill it as a shared secret in the authentication server.
  * use `New key` command to generate a new key, you can use it more times if you are not satisfied with the generated value
  * fill the `HEX` value in you authentication server configuration
  * press `OK` command and you will be switched back to the `Options` screen; confirm your configuration and press `OK` command again
- * if no problem occurs, you are switched to the main application screen, where the PIN is already present 
+ * if no problem occurs, you are switched to the main application screen, where the `Token` value is already present 
  * _you can synchronize the authentication server with your token now_
 
 ## Development

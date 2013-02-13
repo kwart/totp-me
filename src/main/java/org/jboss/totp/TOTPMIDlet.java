@@ -22,7 +22,6 @@ import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
-import java.util.Date;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -100,7 +99,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final StringItem siKeyHex = new StringItem("HEX", null);
 	private final StringItem siKeyBase32 = new StringItem("Base32", null);
 	private final StringItem siToken = new StringItem("Token", null);
-	private final Gauge validity = new Gauge (null, false, DEFAULT_TIMESTEP, DEFAULT_TIMESTEP);
+	private final Gauge gauValidity = new Gauge(null, false, DEFAULT_TIMESTEP - 1, DEFAULT_TIMESTEP);
 	private final TextField tfSecret = new TextField("Secret key (Base32)", null, 105, TextField.ANY);
 	private final TextField tfTimeStep = new TextField("Time step (sec)", null, 3, TextField.NUMERIC);
 	private final TextField tfDigits = new TextField("Number of digits", null, 2, TextField.NUMERIC);
@@ -113,26 +112,25 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final Form fGenerator = new Form("Key generator");
 
 	private final Timer timer = new Timer();
-	private final RefreshPinTask refreshPinTask = new RefreshPinTask();
+	private final RefreshTokenTask refreshTokenTask = new RefreshTokenTask();
 
 	private HMac hmac;
 	private final Random rand = new Random();
-	private int period;
-	
-    // Constructors ----------------------------------------------------------
+
+	// Constructors ----------------------------------------------------------
 
 	public TOTPMIDlet() {
 
 		// Main display
 		fMain.append(siToken);
-		fMain.append(validity);
+		fMain.append(gauValidity);
 		fMain.addCommand(cmdExit);
 		fMain.addCommand(cmdOptions);
 		fMain.addCommand(cmdGenerator);
 		fMain.setCommandListener(this);
-		
-		validity.setLayout(validity.getLayout() | Item.LAYOUT_CENTER);
-		
+
+		gauValidity.setLayout(gauValidity.getLayout() | Item.LAYOUT_CENTER);
+
 		// Key generator
 		fGenerator.append(siKeyHex);
 		fGenerator.append(siKeyBase32);
@@ -175,8 +173,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				// use validation - to check loaded data
 				commandAction(cmdOK, null);
 			}
-			validity.setMaxValue(period);
-			timer.schedule(refreshPinTask, 0L, 1000L);
+			timer.schedule(refreshTokenTask, 0L, 1000L);
 
 		} catch (Exception e) {
 			debugErr("TOTPMIDlet.startApp() - " + e.getMessage());
@@ -194,7 +191,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			debugErr("Saving config in destroyApp failed: " + e.getMessage());
 			error(e);
 		}
-		refreshPinTask.cancel();
+		refreshTokenTask.cancel();
 		timer.cancel();
 		notifyDestroyed();
 	}
@@ -221,7 +218,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 					newHmac.init(new KeyParameter(secretKey));
 				}
 				setHMac(newHmac);
-				refreshPinTask.run();
+				refreshTokenTask.run();
 				display.setCurrent(fMain);
 			} else {
 				alInvalid.setString("Invalid input:\n" + warning);
@@ -312,8 +309,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				warnings.append("\n");
 			warnings.append("Time step must be positive number.");
 		}
-		period = step;
-		
+		gauValidity.setMaxValue(step > 1 ? step - 1 : Gauge.INDEFINITE);
+
 		int digits = 0;
 		try {
 			digits = Integer.parseInt(tfDigits.getString());
@@ -428,8 +425,10 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 * @throws Exception
 	 */
 	private void loadConfig(DataInput aDis) throws Exception {
-		tfTimeStep.setString(String.valueOf(aDis.readInt()));
-		chgHmacAlgorithm.setSelectedIndex(aDis.readInt(), true);
+		final int timeStep = aDis.readInt();
+		gauValidity.setMaxValue(timeStep > 1 ? timeStep - 1 : Gauge.INDEFINITE);
+		tfTimeStep.setString(String.valueOf(timeStep));
+		chgHmacAlgorithm.setSelectedIndex(timeStep, true);
 		tfDigits.setString(String.valueOf(aDis.readByte()));
 	}
 
@@ -440,27 +439,27 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	}
 
 	/**
-	 * Generates the current PIN.
+	 * Generates the current token. If the token can't be generated it returns
+	 * an empty String.
+	 * 
+	 * @return current token or an empty String
 	 */
-	private String genToken() {
+	private String genToken(long counter) {
 		final HMac hmac = getHMac();
-		int timeStep = -1;
 		int digits = -1;
 		try {
-			timeStep = Integer.parseInt(tfTimeStep.getString());
 			digits = Integer.parseInt(tfDigits.getString());
 		} catch (NumberFormatException e) {
 			debugErr(e.getMessage());
 		}
 
-		if (hmac == null || timeStep <= 0 || digits <= 0) {
+		if (hmac == null || digits <= 0) {
 			return "";
 		}
 
 		// generate 8 byte HOTP counter value (RFC 4226)
 		final byte msg[] = new byte[8];
 		// time steps since the Epoch
-		final long counter = (new Date()).getTime() / (1000L * timeStep);
 		for (int i = 0; i < 8; i++) {
 			msg[7 - i] = (byte) (counter >>> (i * 8));
 		}
@@ -655,21 +654,41 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	// Embedded classes ------------------------------------------------------
 
 	/**
-	 * Task for refreshing the PIN.
+	 * Task for refreshing the token.
 	 */
-	private class RefreshPinTask extends TimerTask {
-
-		private int counter;
+	private class RefreshTokenTask extends TimerTask {
 
 		public final void run() {
-			if (counter-- > 0) {
-				validity.setValue(validity.getValue() - 1);
+			int timeStep = -1;
+			try {
+				timeStep = Integer.parseInt(tfTimeStep.getString());
+			} catch (NumberFormatException e) {
+				debugErr(e.getMessage());
+			}
+
+			String newToken = "";
+			int remainSec = -1;
+			if (timeStep > 0) {
+				final long currentTimeSec = System.currentTimeMillis() / 1000L;
+				final long counter = currentTimeSec / timeStep;
+				if (timeStep == 1) {
+					remainSec = Gauge.INCREMENTAL_IDLE;
+				} else {
+					remainSec = (int) (timeStep - 1 - currentTimeSec % timeStep);
+				}
+				newToken = genToken(counter);
 			} else {
-				final String newToken = genToken();
-				debug(newToken);
+				remainSec = 0;
+			}
+			if (DEBUG) {
+				debug("Remaining time (sec): " + Integer.toString(remainSec) + ", Token: " + newToken);
+			}
+			// set values (and repaint) only if needed
+			if (gauValidity.getValue() != remainSec) {
+				gauValidity.setValue(remainSec);
+			}
+			if (!newToken.equals(siToken.getText())) {
 				siToken.setText(newToken);
-				counter = period;
-				validity.setValue(period);
 			}
 		}
 	}
