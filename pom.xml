@@ -95,7 +95,8 @@
 					<artifactId>maven-assembly-plugin</artifactId>
 					<configuration>
 						<descriptors>
-							<descriptor>src/main/assembly/assembly.xml</descriptor>
+							<descriptor>src/main/assembly/assembly-dist.xml</descriptor>
+							<descriptor>src/main/assembly/assembly-src.xml</descriptor>
 						</descriptors>
 						<finalName>totp-me-${project.version}${version.suffix}</finalName>
 					</configuration>
