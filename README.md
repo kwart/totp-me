@@ -3,7 +3,7 @@
 Java ME TOTP ([RFC 6238](http://tools.ietf.org/html/rfc6238)) authenticator. It can be used as a token generator for
  * Google's two phase authentication
  * LinOTP authentication
- * other authentication servers which supports TOTP
+ * other authentication servers which support TOTP
 
 ## Download
 
