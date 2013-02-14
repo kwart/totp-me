@@ -10,6 +10,9 @@ Java ME TOTP ([RFC 6238](http://tools.ietf.org/html/rfc6238)) authenticator. It 
 Download the [latest binaries](https://sourceforge.net/projects/totpme/files/latest/download) 
 from the [SourceForge project pages](https://sourceforge.net/projects/totpme/).
 
+If you want to use direct installation to your device, use either [JAD](http://totpme.sourceforge.net/totp-me.jad)
+or [JAR](http://totpme.sourceforge.net/totp-me.jar).
+
 ## Features
 
 Key (and only) features:
