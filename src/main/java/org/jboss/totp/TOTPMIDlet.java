@@ -87,6 +87,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private static final int DEFAULT_DIGITS = 6;
 	private static final int DEFAULT_HMAC_ALG_IDX = 0;
 
+	private static final long INVALID_COUNTER = -1L;
+
 	// GUI components
 	private Command cmdOK = new Command("OK", Command.OK, 1);
 	private Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
@@ -114,6 +116,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final Timer timer = new Timer();
 	private final RefreshTokenTask refreshTokenTask = new RefreshTokenTask();
 
+	private long cachedCounter;
 	private HMac hmac;
 	private final Random rand = new Random();
 
@@ -247,6 +250,50 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		} else if (aCmd == cmdExit) {
 			destroyApp(false);
 		}
+		cachedCounter = INVALID_COUNTER;
+	}
+
+	// Protected methods -----------------------------------------------------
+
+	/**
+	 * Generates the current token. If the token can't be generated it returns
+	 * an empty String.
+	 * 
+	 * @return current token or an empty String
+	 */
+	protected static String genToken(final long counter, final HMac hmac, final int digits) {
+		if (hmac == null || digits <= 0) {
+			return "";
+		}
+
+		// generate 8 byte HOTP counter value (RFC 4226)
+		final byte msg[] = new byte[8];
+		for (int i = 0; i < 8; i++) {
+			msg[7 - i] = (byte) (counter >>> (i * 8));
+		}
+
+		//compute the HMAC
+		final byte[] hash = new byte[hmac.getMacSize()];
+		hmac.update(msg, 0, msg.length);
+		hmac.doFinal(hash, 0);
+
+		// Transform the HMAC to a HOTP value according to RFC 4226. 
+		final int off = hash[hash.length - 1] & 0xF;
+		// Truncate the HMAC (look at RFC 4226 section 5.3, step 2).
+		int binary = ((hash[off] & 0x7f) << 24) | ((hash[off + 1] & 0xff) << 16) | ((hash[off + 2] & 0xff) << 8)
+				| ((hash[off + 3] & 0xff));
+
+		// use requested number of digits
+		final byte[] digitsArray = new byte[digits];
+		for (int i = 0; i < digits; i++) {
+			digitsArray[digits - 1 - i] = (byte) ('0' + (char) (binary % 10));
+			binary /= 10;
+		}
+		return new String(digitsArray, 0, digits);
+	}
+
+	protected static long getCounter(final long timeInSec, final int timeStep) {
+		return timeStep > 0 ? timeInSec / timeStep : INVALID_COUNTER;
 	}
 
 	// Private methods -------------------------------------------------------
@@ -442,56 +489,11 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	}
 
 	/**
-	 * Generates the current token. If the token can't be generated it returns
-	 * an empty String.
-	 * 
-	 * @return current token or an empty String
-	 */
-	private String genToken(long counter) {
-		final HMac hmac = getHMac();
-		int digits = -1;
-		try {
-			digits = Integer.parseInt(tfDigits.getString());
-		} catch (NumberFormatException e) {
-			debugErr(e.getMessage());
-		}
-
-		if (hmac == null || digits <= 0) {
-			return "";
-		}
-
-		// generate 8 byte HOTP counter value (RFC 4226)
-		final byte msg[] = new byte[8];
-		for (int i = 0; i < 8; i++) {
-			msg[7 - i] = (byte) (counter >>> (i * 8));
-		}
-
-		//compute the HMAC
-		final byte[] hash = new byte[hmac.getMacSize()];
-		hmac.update(msg, 0, msg.length);
-		hmac.doFinal(hash, 0);
-
-		// Transform the HMAC to a HOTP value according to RFC 4226. 
-		final int off = hash[hash.length - 1] & 0xF;
-		// Truncate the HMAC (look at RFC 4226 section 5.3, step 2).
-		int binary = ((hash[off] & 0x7f) << 24) | ((hash[off + 1] & 0xff) << 16) | ((hash[off + 2] & 0xff) << 8)
-				| ((hash[off + 3] & 0xff));
-
-		// use requested number of digits
-		final byte[] digitsArray = new byte[digits];
-		for (int i = 0; i < digits; i++) {
-			digitsArray[digits - 1 - i] = (byte) ('0' + (char) (binary % 10));
-			binary /= 10;
-		}
-		return new String(digitsArray, 0, digits);
-	}
-
-	/**
 	 * Debug function
 	 * 
 	 * @param aWhat
 	 */
-	public synchronized static void debug(final String aWhat) {
+	private static void debug(final String aWhat) {
 		if (DEBUG) {
 			System.out.println(">>>DEBUG " + aWhat);
 		}
@@ -502,7 +504,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 * 
 	 * @param aWhat
 	 */
-	public synchronized static void debugErr(final String aWhat) {
+	private static void debugErr(final String aWhat) {
 		if (DEBUG) {
 			System.err.println(">>>ERROR " + aWhat);
 		}
@@ -668,31 +670,38 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				debugErr(e.getMessage());
 			}
 
-			String newToken = "";
 			int remainSec = -1;
 			if (timeStep > 0) {
 				final long currentTimeSec = System.currentTimeMillis() / 1000L;
-				final long counter = currentTimeSec / timeStep;
-				newToken = genToken(counter);
+				final long newCounter = getCounter(currentTimeSec, timeStep);
+				if (cachedCounter != newCounter) {
+					int digits = -1;
+					try {
+						digits = Integer.parseInt(tfDigits.getString());
+					} catch (NumberFormatException e) {
+						debugErr(e.getMessage());
+					}
+					siToken.setText(genToken(newCounter, getHMac(), digits));
+					cachedCounter = newCounter;
+				}
 				if (timeStep == 1) {
 					remainSec = Gauge.INCREMENTAL_UPDATING;
-				} else if ("".equals(newToken)) {
+				} else if ("".equals(siToken.getText())) {
 					remainSec = Gauge.INCREMENTAL_IDLE;
 				} else {
 					remainSec = (int) (timeStep - 1 - currentTimeSec % timeStep);
 				}
 			} else {
 				remainSec = 0;
+				siToken.setText("");
+				cachedCounter = INVALID_COUNTER;
 			}
 			if (DEBUG) {
-				debug("Remaining time (sec): " + Integer.toString(remainSec) + ", Token: " + newToken);
+				debug("Remaining time (sec): " + Integer.toString(remainSec) + ", Token: " + siToken.getText());
 			}
 			// set values (and repaint) only if needed
 			if (gauValidity.getValue() != remainSec) {
 				gauValidity.setValue(remainSec);
-			}
-			if (!newToken.equals(siToken.getText())) {
-				siToken.setText(newToken);
 			}
 		}
 	}

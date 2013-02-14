@@ -7,7 +7,7 @@
 
 	<groupId>org.jboss.totp</groupId>
 	<artifactId>totpme</artifactId>
-	<version>1.1-SNAPSHOT</version>
+	<version>1.1</version>
 	<packaging>jar</packaging>
 
 	<name>TOTP ME</name>
@@ -18,18 +18,19 @@
 	</organization>
 
 	<properties>
+		<version.suffix>-SNAPSHOT</version.suffix>
+
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<microemulator.version>2.0.3</microemulator.version>
-		<!-- <wtk.home>/home/jcacek/Java/WTK2.5.2</wtk.home> -->
 
 		<midlet.vendor>${project.organization.name}</midlet.vendor>
 		<midlet.name>${project.name}</midlet.name>
 		<midlet.version>${project.version}</midlet.version>
-
 		<obfuscate>true</obfuscate>
 		<proguard>true</proguard>
 
-		<!-- <midlet.configuration>CLDC-1.1</midlet.configuration> <midlet.profile>MIDP-2.0</midlet.profile> -->
+		<midlet.configuration>CLDC-1.1</midlet.configuration>
+		<midlet.profile>MIDP-2.0</midlet.profile>
 	</properties>
 
 	<dependencies>
@@ -44,6 +45,13 @@
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>lcrypto-j2me</artifactId>
 			<version>1.45</version>
+		</dependency>
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.8.1</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -65,6 +73,8 @@
 						</execution>
 					</executions>
 					<configuration>
+						<j2meConfiguration>${midlet.configuration}</j2meConfiguration>
+						<j2meProfile>${midlet.profile}</j2meProfile>
 						<proguardInclude>proguard.conf</proguardInclude>
 						<proguard>${proguard}</proguard>
 						<obfuscate>${obfuscate}</obfuscate>
@@ -87,7 +97,7 @@
 						<descriptors>
 							<descriptor>src/main/assembly/assembly.xml</descriptor>
 						</descriptors>
-						<finalName>totp-me-${project.version}</finalName>
+						<finalName>totp-me-${project.version}${version.suffix}</finalName>
 					</configuration>
 					<executions>
 						<execution>
