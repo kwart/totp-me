@@ -17,8 +17,10 @@ Key (and only) features:
  * configurable parameters
    - secret key (shared)
    - digest algorithm: SHA-1 (default), SHA-256, SHA-512
-   - number of digits (default is 6)
+   - number of token digits (default is 6)
    - time step (default is 30)
+   - time correction (default is 0) - advanced feature, the value (may be negative) is added to the device's system time
+     during computing a token value
  * input validation
  * key generator with Base32 and HEX output
 

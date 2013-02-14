@@ -85,16 +85,19 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private static final int DEFAULT_TIMESTEP = 30;
 	private static final byte[] DEFAULT_SECRET = null;
 	private static final int DEFAULT_DIGITS = 6;
+	private static final int DEFAULT_DELTA = 0;
 	private static final int DEFAULT_HMAC_ALG_IDX = 0;
 
 	private static final long INVALID_COUNTER = -1L;
+
+	private static final int DAY_IN_SEC = 60 * 60 * 24;
 
 	// GUI components
 	private Command cmdOK = new Command("OK", Command.OK, 1);
 	private Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
 	private Command cmdOptions = new Command("Options", Command.SCREEN, 1);
-	private Command cmdExit = new Command("Exit", Command.CANCEL, 1);
-	private Command cmdGenerator = new Command("Key generator", Command.SCREEN, 2);
+	private Command cmdExit = new Command("Exit", Command.EXIT, 1);
+	private Command cmdGenerator = new Command("Key generator", Command.SCREEN, 1);
 	private Command cmdNewKey = new Command("New key", Command.SCREEN, 1);
 	private Command cmdReset = new Command("Default values", Command.SCREEN, 3);
 
@@ -105,6 +108,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final TextField tfSecret = new TextField("Secret key (Base32)", null, 105, TextField.ANY);
 	private final TextField tfTimeStep = new TextField("Time step (sec)", null, 3, TextField.NUMERIC);
 	private final TextField tfDigits = new TextField("Number of digits", null, 2, TextField.NUMERIC);
+	private final TextField tfDelta = new TextField("Time correction (sec)", null, 6, TextField.NUMERIC);
 	private final ChoiceGroup chgHmacAlgorithm = new ChoiceGroup("HMAC algorithm", Choice.EXCLUSIVE);
 
 	private final Alert alInvalid = new Alert("Warning", "Invalid input!", null, AlertType.ALARM);
@@ -149,6 +153,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			chgHmacAlgorithm.append(HMAC_ALGORITHMS[i], null);
 		}
 		fOptions.append(chgHmacAlgorithm);
+		fOptions.append(tfDelta);
 		fOptions.addCommand(cmdOK);
 		fOptions.addCommand(cmdGenerator);
 		fOptions.addCommand(cmdReset);
@@ -247,6 +252,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			tfTimeStep.setString(Integer.toString(DEFAULT_TIMESTEP));
 			tfDigits.setString(Integer.toString(DEFAULT_DIGITS));
 			chgHmacAlgorithm.setSelectedIndex(DEFAULT_HMAC_ALG_IDX, true);
+			tfDelta.setString(Integer.toString(DEFAULT_DELTA));
 		} else if (aCmd == cmdExit) {
 			destroyApp(false);
 		}
@@ -370,6 +376,17 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			warnings.append("Number of digits must be positive number.");
 		}
 
+		int delta = 0;
+		try {
+			delta = Integer.parseInt(tfDelta.getString());
+		} catch (NumberFormatException e) {
+			tfDelta.setString(Integer.toString(DEFAULT_DELTA));
+		}
+		if (Math.abs(delta) > DAY_IN_SEC) {
+			if (warnings.length() > 0)
+				warnings.append("\n");
+			warnings.append("Time correction is limited by one day (").append(DAY_IN_SEC).append(" sec).");
+		}
 		return warnings.toString();
 	}
 
@@ -480,12 +497,14 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		tfTimeStep.setString(String.valueOf(timeStep));
 		chgHmacAlgorithm.setSelectedIndex(timeStep, true);
 		tfDigits.setString(String.valueOf(aDis.readByte()));
+		tfDelta.setString(String.valueOf(aDis.readInt()));
 	}
 
 	private void saveConfig(DataOutput aDos) throws Exception {
 		aDos.writeInt(Integer.parseInt(tfTimeStep.getString()));
 		aDos.writeInt(chgHmacAlgorithm.getSelectedIndex());
 		aDos.writeByte(Integer.parseInt(tfDigits.getString()));
+		aDos.writeInt(Integer.parseInt(tfDelta.getString()));
 	}
 
 	/**
@@ -672,7 +691,13 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 			int remainSec = -1;
 			if (timeStep > 0) {
-				final long currentTimeSec = System.currentTimeMillis() / 1000L;
+				int delta = DEFAULT_DELTA;
+				try {
+					delta = Integer.parseInt(tfDelta.getString());
+				} catch (NumberFormatException e) {
+					debugErr(e.getMessage());
+				}
+				final long currentTimeSec = System.currentTimeMillis() / 1000L + delta;
 				final long newCounter = getCounter(currentTimeSec, timeStep);
 				if (cachedCounter != newCounter) {
 					int digits = -1;
