@@ -29,9 +29,9 @@ Key (and only) features:
 
 ## Screenshots
 
-![Main screen](http://c.fsdn.com/con/app/proj/totpme/screenshots/totp-me-main.png)
-![Options screen](http://c.fsdn.com/con/app/proj/totpme/screenshots/totp-me-options.png)
-![Key generator](http://c.fsdn.com/con/app/proj/totpme/screenshots/totp-me-key-generator.png)
+![Main screen](http://sourceforge.net/p/totpme/screenshot/totp-me-main.png)
+![Options screen](http://sourceforge.net/p/totpme/screenshot/totp-me-options.png)
+![Key generator](http://sourceforge.net/p/totpme/screenshot/totp-me-key-generator.png)
 
 ## How to install it
 
