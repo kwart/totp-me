@@ -59,6 +59,19 @@
 		<defaultGoal>install</defaultGoal>
 		<finalName>totp</finalName>
 
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<targetPath>${project.build.outputDirectory}</targetPath>
+			</resource>
+			<resource>
+				<directory>src/main/java</directory>
+				<filtering>true</filtering>
+				<targetPath>../filtered-src</targetPath>
+			</resource>			
+		</resources>
+		<sourceDirectory>target/filtered-src</sourceDirectory>
+		 
 		<pluginManagement>
 			<plugins>
 				<plugin>

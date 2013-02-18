@@ -113,7 +113,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	private final Alert alInvalid = new Alert("Warning", "Invalid input!", null, AlertType.ALARM);
 
-	private final Form fMain = new Form("TOTP");
+	private final Form fMain = new Form("TOTP ME ${project.version}");
 	private final Form fOptions = new Form("TOTP configuration");
 	private final Form fGenerator = new Form("Key generator");
 
@@ -126,6 +126,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	// Constructors ----------------------------------------------------------
 
+	/**
+	 * Constructor - initializes GUI components.
+	 */
 	public TOTPMIDlet() {
 
 		// Main display
@@ -136,7 +139,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		fMain.addCommand(cmdGenerator);
 		fMain.setCommandListener(this);
 
-		gauValidity.setLayout(gauValidity.getLayout() | Item.LAYOUT_CENTER);
+		// align component to the center (horizontally) on the main page (version 1.2)
+		gauValidity.setLayout(Item.LAYOUT_CENTER);
+		siToken.setLayout(Item.LAYOUT_CENTER);
 
 		// Key generator
 		fGenerator.append(siKeyHex);
@@ -170,6 +175,11 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	// Public methods --------------------------------------------------------
 
+	/**
+	 * Loads configuration and initializes token-refreshing timer.
+	 * 
+	 * @see javax.microedition.midlet.MIDlet#startApp()
+	 */
 	public void startApp() {
 		try {
 			load();
@@ -189,9 +199,17 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see javax.microedition.midlet.MIDlet#pauseApp()
+	 */
 	public void pauseApp() {
 	}
 
+	/**
+	 * Saves configuration to the record store and exits the refreshing timer.
+	 * 
+	 * @see javax.microedition.midlet.MIDlet#destroyApp(boolean)
+	 */
 	public void destroyApp(boolean unconditional) {
 		try {
 			save();
@@ -204,6 +222,12 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		notifyDestroyed();
 	}
 
+	/**
+	 * Handles command actions from all forms.
+	 * 
+	 * @see javax.microedition.lcdui.CommandListener#commandAction(javax.microedition.lcdui.Command,
+	 *      javax.microedition.lcdui.Displayable)
+	 */
 	public void commandAction(Command aCmd, Displayable aDisp) {
 		debug("Options - Command action " + aCmd);
 		final Display display = Display.getDisplay(this);
@@ -248,6 +272,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		} else if (aCmd == cmdOptions) {
 			display.setCurrent(fOptions);
 		} else if (aCmd == cmdReset) {
+			setHMac(null);
+			gauValidity.setMaxValue(Gauge.INDEFINITE);
+			gauValidity.setValue(Gauge.INCREMENTAL_IDLE);
 			tfSecret.setString(base32Encode(DEFAULT_SECRET));
 			tfTimeStep.setString(Integer.toString(DEFAULT_TIMESTEP));
 			tfDigits.setString(Integer.toString(DEFAULT_DIGITS));
