@@ -455,7 +455,12 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		} catch (Exception e) {
 			if (tmpRS != null) {
 				tmpRS.closeRecordStore();
+				tmpRS = null;
 				RecordStore.deleteRecordStore(STORE_CONFIG);
+			}
+		} finally {
+			if (tmpRS != null) {
+				tmpRS.closeRecordStore();
 			}
 		}
 	}
@@ -522,7 +527,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		final boolean hasKey = tfSecret.getString() != null && tfSecret.getString().length() > 0;
 		gauValidity.setMaxValue((hasKey && timeStep > 1) ? timeStep - 1 : Gauge.INDEFINITE);
 		tfTimeStep.setString(String.valueOf(timeStep));
-		chgHmacAlgorithm.setSelectedIndex(timeStep, true);
+		chgHmacAlgorithm.setSelectedIndex(aDis.readInt(), true);
 		tfDigits.setString(String.valueOf(aDis.readByte()));
 		tfDelta.setString(String.valueOf(aDis.readInt()));
 	}
