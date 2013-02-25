@@ -1,0 +1,153 @@
+<!doctype html>
+<!-- The Time Machine GitHub pages theme was designed and developed by Jon Rohan, on Feb 7, 2012. -->
+<!-- Follow him for fun. http://twitter.com/jonrohan. Tail his code on http://github.com/jonrohan -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <link rel="stylesheet" href="stylesheets/stylesheet.css" media="screen"/>
+  <link rel="stylesheet" href="stylesheets/pygment_trac.css"/>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script type="text/javascript" src="javascripts/script.js"></script>
+
+  <title>Totp-me</title>
+  <meta name="description" content="TOTP authenticator for Java ME enabled devices. It's an implementation of the RFC 6238 - TOTP: Time-Based One-Time Password Algorithm.">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+</head>
+
+<body>
+
+  <div class="wrapper">
+    <header>
+      <h1 class="title">Totp-me</h1>
+    </header>
+    <div id="container">
+      <p class="tagline">TOTP authenticator for Java ME enabled devices. It's an implementation of the RFC 6238 - TOTP: Time-Based One-Time Password Algorithm.</p>
+      <div id="main" role="main">
+        <div class="download-bar">
+        <div class="inner">
+          <a href="https://github.com/kwart/totp-me/tarball/master" class="download-button tar"><span>Download</span></a>
+          <a href="https://github.com/kwart/totp-me/zipball/master" class="download-button zip"><span>Download</span></a>
+          <a href="https://github.com/kwart/totp-me" class="code">View Totp-me on GitHub</a>
+        </div>
+        <span class="blc"></span><span class="trc"></span>
+        </div>
+        <article class="markdown-body">
+          <h1>TOTP for Java ME</h1>
+
+<p>Java ME TOTP (<a href="http://tools.ietf.org/html/rfc6238">RFC 6238</a>) authenticator. It can be used as a token generator for</p>
+
+<ul>
+<li>Google's two phase authentication</li>
+<li>LinOTP authentication</li>
+<li>other authentication servers which support TOTP</li>
+</ul><h2>Download</h2>
+
+<p>Download the <a href="https://sourceforge.net/projects/totpme/files/latest/download">latest binaries</a> 
+from the <a href="https://sourceforge.net/projects/totpme/">SourceForge project pages</a>.</p>
+
+<p>If you want to use direct installation to your device, use either <a href="http://totpme.sourceforge.net/totp-me.jad">JAD</a>
+or <a href="http://totpme.sourceforge.net/totp-me.jar">JAR</a>.</p>
+
+<h2>Features</h2>
+
+<p>Key (and only) features:</p>
+
+<ul>
+<li>configurable parameters
+
+<ul>
+<li>secret key (shared)</li>
+<li>digest algorithm: SHA-1 (default), SHA-256, SHA-512</li>
+<li>number of token digits (default is 6)</li>
+<li>time step (default is 30)</li>
+<li>time correction (default is 0) - advanced feature, the value (may be negative) is added to the device's system time
+during computing a token value</li>
+</ul>
+</li>
+<li>input validation</li>
+<li>key generator with Base32 and HEX output</li>
+</ul><h2>Screenshots</h2>
+
+<p><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-main.png" alt="Main screen"><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-options.png" alt="Options screen"><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-key-generator.png" alt="Key generator"></p>
+
+<h2>How to install it</h2>
+
+<p>Unzip files from the distribution package and copy <code>totp-me.jar</code> to your device which supports Java ME.
+Some devices may also need the description file <code>totp-me.jad</code> to be copied together with the JAR.</p>
+
+<h2>How to use it</h2>
+
+<p>You either have already a secret key, then fill it as Base32 encoded String after the start (Options 
+form is displayed if no key is set already). Or you can generate the secret key directly by the application and then
+fill it as a shared secret in the authentication server.</p>
+
+<h3>Generate new secret key</h3>
+
+<ul>
+<li>choose your preferred digest algorithm in the <code>Options</code> screen (the default is <code>SHA-1</code>)</li>
+<li>choose <code>Key generator</code> from the menu - it will switch you to screen for generating the new key</li>
+<li>use <code>New key</code> command to generate a new key, you can use it more times if you are not satisfied with the generated value</li>
+<li>fill the <code>HEX</code> value in you authentication server configuration</li>
+<li>press <code>OK</code> command and you will be switched back to the <code>Options</code> screen; confirm your configuration and press <code>OK</code> command again</li>
+<li>if no problem occurs, you are switched to the main application screen, where the <code>Token</code> value is already present </li>
+<li><em>you can synchronize the authentication server with your token now</em></li>
+</ul><h2>Development</h2>
+
+<p>You can simply build the software yourself.</p>
+
+<h3>How to get the sources</h3>
+
+<p>You should have <a href="http://git-scm.com/">git</a> installed</p>
+
+<pre><code>$ git clone git://github.com/kwart/topt-me.git
+</code></pre>
+
+<p>or you can download <a href="https://github.com/kwart/totp-me/archive/master.zip">current sources as a zip file</a></p>
+
+<h3>How to build it</h3>
+
+<p>You need to have <a href="http://maven.apache.org/">Maven</a> installed</p>
+
+<pre><code>$ cd totp-me
+$ mvn clean package
+</code></pre>
+
+<h3>How to run it in the Microemulator</h3>
+
+<p>Just use <code>exec:java</code> goal after you've successfully built the project </p>
+
+<pre><code>$ mvn exec:java
+</code></pre>
+
+<h2>License</h2>
+
+<ul>
+<li><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a></li>
+</ul>
+        </article>
+      </div>
+    </div>
+    <footer>
+      <div class="owner">
+      <p><a href="https://github.com/kwart" class="avatar"><img src="https://secure.gravatar.com/avatar/37549898573667a3b1431041663f2d72?s=30&amp;d=https://a248.e.akamai.net/assets.github.com%2Fimages%2Fgravatars%2Fgravatar-user-420.png" width="48" height="48"/></a> <a href="https://github.com/kwart">kwart</a> maintains <a href="https://github.com/kwart/totp-me">Totp-me</a></p>
+
+
+      </div>
+      <div class="creds">
+        <small>This page generated using <a href="https://pages.github.com/">GitHub Pages</a><br/>theme by <a href="http://twitter.com/jonrohan/">Jon Rohan</a></small>
+      </div>
+    </footer>
+  </div>
+  <div class="current-section">
+    <a href="#top">Scroll to top</a>
+    <a href="https://github.com/kwart/totp-me/tarball/master" class="tar">tar</a><a href="https://github.com/kwart/totp-me/zipball/master" class="zip">zip</a><a href="" class="code">source code</a>
+    <p class="name"></p>
+  </div>
+
+  
+</body>
+</html>
