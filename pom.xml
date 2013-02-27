@@ -29,8 +29,8 @@
 		<obfuscate>true</obfuscate>
 		<proguard>true</proguard>
 
-		<midlet.configuration>CLDC-1.1</midlet.configuration>
-		<midlet.profile>MIDP-2.0</midlet.profile>
+		<midlet.configuration>CLDC-1.0</midlet.configuration>
+		<midlet.profile>MIDP-1.0</midlet.profile>
 	</properties>
 
 	<dependencies>

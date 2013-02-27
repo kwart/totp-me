@@ -36,7 +36,6 @@ import javax.microedition.lcdui.Display;
 import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Form;
 import javax.microedition.lcdui.Gauge;
-import javax.microedition.lcdui.Item;
 import javax.microedition.lcdui.StringItem;
 import javax.microedition.lcdui.TextField;
 import javax.microedition.midlet.MIDlet;
@@ -92,6 +91,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	private static final int DAY_IN_SEC = 60 * 60 * 24;
 
+	private static final int INDEFINITE = 1;
+	private static final int IDLE = 0;
+
 	// GUI components
 	private Command cmdOK = new Command("OK", Command.OK, 1);
 	private Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
@@ -138,10 +140,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		fMain.addCommand(cmdOptions);
 		fMain.addCommand(cmdGenerator);
 		fMain.setCommandListener(this);
-
-		// align component to the center (horizontally) on the main page (version 1.2)
-		gauValidity.setLayout(Item.LAYOUT_CENTER);
-		siToken.setLayout(Item.LAYOUT_CENTER);
 
 		// Key generator
 		fGenerator.append(siKeyHex);
@@ -273,8 +271,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			display.setCurrent(fOptions);
 		} else if (aCmd == cmdReset) {
 			setHMac(null);
-			gauValidity.setMaxValue(Gauge.INDEFINITE);
-			gauValidity.setValue(Gauge.INCREMENTAL_IDLE);
+			gauValidity.setMaxValue(INDEFINITE);
+			gauValidity.setValue(IDLE);
 			tfSecret.setString(base32Encode(DEFAULT_SECRET));
 			tfTimeStep.setString(Integer.toString(DEFAULT_TIMESTEP));
 			tfDigits.setString(Integer.toString(DEFAULT_DIGITS));
@@ -389,7 +387,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				warnings.append("\n");
 			warnings.append("Time step must be positive number.");
 		}
-		gauValidity.setMaxValue((keyLen > 0 && step > 1) ? step - 1 : Gauge.INDEFINITE);
+		gauValidity.setMaxValue((keyLen > 0 && step > 1) ? step - 1 : INDEFINITE);
 
 		int digits = 0;
 		try {
@@ -525,7 +523,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private void loadConfig(DataInput aDis) throws Exception {
 		final int timeStep = aDis.readInt();
 		final boolean hasKey = tfSecret.getString() != null && tfSecret.getString().length() > 0;
-		gauValidity.setMaxValue((hasKey && timeStep > 1) ? timeStep - 1 : Gauge.INDEFINITE);
+		gauValidity.setMaxValue((hasKey && timeStep > 1) ? timeStep - 1 : INDEFINITE);
 		tfTimeStep.setString(String.valueOf(timeStep));
 		chgHmacAlgorithm.setSelectedIndex(aDis.readInt(), true);
 		tfDigits.setString(String.valueOf(aDis.readByte()));
@@ -741,10 +739,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 					siToken.setText(genToken(newCounter, getHMac(), digits));
 					cachedCounter = newCounter;
 				}
-				if (timeStep == 1) {
-					remainSec = Gauge.INCREMENTAL_UPDATING;
-				} else if ("".equals(siToken.getText())) {
-					remainSec = Gauge.INCREMENTAL_IDLE;
+				if (timeStep == 1 || "".equals(siToken.getText())) {
+					remainSec = IDLE;
 				} else {
 					remainSec = (int) (timeStep - 1 - currentTimeSec % timeStep);
 				}
