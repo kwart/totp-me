@@ -29,7 +29,7 @@ Key (and only) features:
 
 ### Change log
 
-Check [Release notes](ReleaseNotes-README.md) for the list of changes.
+Check [Release notes](https://github.com/kwart/totp-me/blob/master/ReleaseNotes-README.md) for the list of changes.
 
 ## Screenshots
 
