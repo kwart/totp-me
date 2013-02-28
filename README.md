@@ -27,6 +27,10 @@ Key (and only) features:
  * input validation
  * key generator with Base32 and HEX output
 
+### Change log
+
+Check [Release notes](ReleaseNotes-README.md) for the list of changes.
+
 ## Screenshots
 
 ![Main screen](http://sourceforge.net/p/totpme/screenshot/totp-me-main.png)
