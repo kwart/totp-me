@@ -3,7 +3,8 @@
 ## 1.3 (MIDP-1.0)
 
 * Issue#10 support for MIDP-1.0 devices
-* Issue#12 this Release notes added 
+* Issue#12 this Release notes added
+* Issue#13 Include a baseDirectory in the released files 
 
 ## 1.2
 
