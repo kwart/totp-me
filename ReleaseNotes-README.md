@@ -1,5 +1,7 @@
 # Release Notes
 
+TOTP authenticator for Java ME enabled devices. It's an implementation of the RFC 6238 (TOTP: Time-Based One-Time Password Algorithm). 
+
 ## 1.3 (MIDP-1.0)
 
 * Issue#10 support for MIDP-1.0 devices
