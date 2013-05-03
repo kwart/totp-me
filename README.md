@@ -66,7 +66,7 @@ You can simply build the software yourself.
 
 You should have [git](http://git-scm.com/) installed
 
-	$ git clone git://github.com/kwart/topt-me.git
+	$ git clone git://github.com/kwart/totp-me.git
 
 or you can download [current sources as a zip file](https://github.com/kwart/totp-me/archive/master.zip)
 
