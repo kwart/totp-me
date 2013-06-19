@@ -1,12 +1,16 @@
 # Release Notes
 
-TOTP authenticator for Java ME enabled devices. It's an implementation of the RFC 6238 (TOTP: Time-Based One-Time Password Algorithm). 
+TOTP authenticator for Java ME enabled devices. It's an implementation of the RFC 6238 (TOTP: Time-Based One-Time Password Algorithm).
 
-## 1.3 (MIDP-1.0)
+## 1.4
+
+* Issue#4 support for multiple profiles/accounts
+
+## 1.3
 
 * Issue#10 support for MIDP-1.0 devices
 * Issue#12 this Release notes added
-* Issue#13 Include a baseDirectory in the released files 
+* Issue#13 Include a baseDirectory in the released files
 
 ## 1.2
 
@@ -17,7 +21,7 @@ TOTP authenticator for Java ME enabled devices. It's an implementation of the RF
 
 * Issue#1 token validity count down progress bar (Gauge) on the main screen
 * Issue#2 configurable parameter for time adjustment/correction
-* Issue#7 optimization of token generation 
+* Issue#7 optimization of token generation
 
 ## 1.0
 
@@ -28,4 +32,4 @@ The first release of the totp-me authenticator (uses MIDP-2.0/CLDC-1.1 profile).
 * number of token digits
 * time step
 
-It also contains a key generator and validation of provided configuration. 
+It also contains a key generator and validation of provided configuration.

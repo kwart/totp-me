@@ -1,7 +1,7 @@
 /*
  * JBoss, Home of Professional Open Source
  * Copyright 2013, Red Hat, Inc. and/or its affiliates, and individual
- * contributors by the @authors tag. See the copyright.txt in the 
+ * contributors by the @authors tag. See the copyright.txt in the
  * distribution for a full listing of individual contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -9,7 +9,7 @@
  * You may obtain a copy of the License at
  * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,  
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -18,10 +18,10 @@ package org.jboss.totp;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.Calendar;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -36,10 +36,13 @@ import javax.microedition.lcdui.Display;
 import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Form;
 import javax.microedition.lcdui.Gauge;
+import javax.microedition.lcdui.List;
 import javax.microedition.lcdui.StringItem;
 import javax.microedition.lcdui.TextField;
 import javax.microedition.midlet.MIDlet;
+import javax.microedition.rms.RecordEnumeration;
 import javax.microedition.rms.RecordStore;
+import javax.microedition.rms.RecordStoreException;
 import javax.microedition.rms.RecordStoreNotFoundException;
 
 import org.bouncycastle.crypto.Digest;
@@ -58,8 +61,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	private static final boolean DEBUG = false;
 
-	private static final String STORE_CONFIG = "config";
-	private static final String STORE_KEY = "key";
+	private static final String STORE_CONFIG_OLD = "config";
+	private static final String STORE_PROFILE_CONFIG = "profile-config";
+	private static final String STORE_KEY_OLD = "key";
 
 	private static final String BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -87,6 +91,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private static final int DEFAULT_DELTA = 0;
 	private static final int DEFAULT_HMAC_ALG_IDX = 0;
 
+	private static final String DEFAULT_PROFILE = "Default";
+
 	private static final long INVALID_COUNTER = -1L;
 
 	private static final int DAY_IN_SEC = 60 * 60 * 24;
@@ -94,30 +100,48 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private static final int INDEFINITE = 1;
 	private static final int IDLE = 0;
 
+	private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+	private static final byte[] DEFAULT_CONFIG_BYTES = getProfileConfig(DEFAULT_PROFILE, EMPTY_BYTE_ARRAY,
+			DEFAULT_TIMESTEP, DEFAULT_HMAC_ALG_IDX, DEFAULT_DIGITS, DEFAULT_DELTA);
+
 	// GUI components
-	private Command cmdOK = new Command("OK", Command.OK, 1);
-	private Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
-	private Command cmdOptions = new Command("Options", Command.SCREEN, 1);
+	// main screen
 	private Command cmdExit = new Command("Exit", Command.EXIT, 1);
+	private Command cmdOptions = new Command("Options", Command.SCREEN, 1);
+	private Command cmdProfiles = new Command("Profiles", Command.SCREEN, 1);
+	// main+options screen
 	private Command cmdGenerator = new Command("Key generator", Command.SCREEN, 1);
-	private Command cmdNewKey = new Command("New key", Command.SCREEN, 1);
+	// options screen
+	private Command cmdOK = new Command("OK", Command.OK, 1);
 	private Command cmdReset = new Command("Default values", Command.SCREEN, 3);
+	// keyGenerator screen
+	private Command cmdNewKey = new Command("New key", Command.SCREEN, 1);
+	private Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
+	// profiles screen
+	private Command cmdAddProfile = new Command("Add profile", Command.SCREEN, 1);
+	private Command cmdRemoveProfile = new Command("Remove profile", Command.SCREEN, 1);
 
 	private final StringItem siKeyHex = new StringItem("HEX", null);
 	private final StringItem siKeyBase32 = new StringItem("Base32", null);
 	private final StringItem siToken = new StringItem("Token", null);
+	private final StringItem siProfile = new StringItem(null, null);
 	private final Gauge gauValidity = new Gauge(null, false, DEFAULT_TIMESTEP - 1, DEFAULT_TIMESTEP);
 	private final TextField tfSecret = new TextField("Secret key (Base32)", null, 105, TextField.ANY);
-	private final TextField tfTimeStep = new TextField("Time step (sec)", null, 3, TextField.NUMERIC);
-	private final TextField tfDigits = new TextField("Number of digits", null, 2, TextField.NUMERIC);
-	private final TextField tfDelta = new TextField("Time correction (sec)", null, 6, TextField.NUMERIC);
+	private final TextField tfProfile = new TextField("Profile name", null, 105, TextField.ANY);
+	private final TextField tfTimeStep = new TextField("Time step (sec)", String.valueOf(DEFAULT_TIMESTEP), 3,
+			TextField.NUMERIC);
+	private final TextField tfDigits = new TextField("Number of digits", String.valueOf(DEFAULT_DIGITS), 2,
+			TextField.NUMERIC);
+	private final TextField tfDelta = new TextField("Time correction (sec)", String.valueOf(DEFAULT_DELTA), 6,
+			TextField.NUMERIC);
 	private final ChoiceGroup chgHmacAlgorithm = new ChoiceGroup("HMAC algorithm", Choice.EXCLUSIVE);
 
-	private final Alert alInvalid = new Alert("Warning", "Invalid input!", null, AlertType.ALARM);
+	private final Alert alertWarn = new Alert("Warning", "Something went wrong!", null, AlertType.ALARM);
 
 	private final Form fMain = new Form("TOTP ME ${project.version}");
 	private final Form fOptions = new Form("TOTP configuration");
 	private final Form fGenerator = new Form("Key generator");
+	private final List listProfiles = new List("Profiles", Choice.IMPLICIT, new String[] { DEFAULT_PROFILE }, null);
 
 	private final Timer timer = new Timer();
 	private final RefreshTokenTask refreshTokenTask = new RefreshTokenTask();
@@ -125,6 +149,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private long cachedCounter;
 	private HMac hmac;
 	private final Random rand = new Random();
+
+	private int[] recordIds;
 
 	// Constructors ----------------------------------------------------------
 
@@ -136,7 +162,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		// Main display
 		fMain.append(siToken);
 		fMain.append(gauValidity);
+		fMain.append(siProfile);
 		fMain.addCommand(cmdExit);
+		fMain.addCommand(cmdProfiles);
 		fMain.addCommand(cmdOptions);
 		fMain.addCommand(cmdGenerator);
 		fMain.setCommandListener(this);
@@ -150,6 +178,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 		// Configuration display
 		fOptions.append(tfSecret);
+		fOptions.append(tfProfile);
 		fOptions.append(tfTimeStep);
 		fOptions.append(tfDigits);
 		for (int i = 0; i < HMAC_ALGORITHMS.length; i++) {
@@ -162,13 +191,17 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		fOptions.addCommand(cmdReset);
 		fOptions.setCommandListener(this);
 
+		// Profiles
+		listProfiles.addCommand(cmdAddProfile);
+		listProfiles.addCommand(cmdRemoveProfile);
+		listProfiles.setCommandListener(this);
+
 		// set alert
-		alInvalid.setTimeout(Alert.FOREVER);
+		alertWarn.setTimeout(Alert.FOREVER);
 
 		tfTimeStep.setString(String.valueOf(DEFAULT_TIMESTEP));
 		tfDigits.setString(String.valueOf(DEFAULT_DIGITS));
 		chgHmacAlgorithm.setSelectedIndex(DEFAULT_HMAC_ALG_IDX, true);
-
 	}
 
 	// Public methods --------------------------------------------------------
@@ -180,17 +213,13 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 */
 	public void startApp() {
 		try {
-			load();
-			final Display display = Display.getDisplay(this);
-			final String secret = tfSecret.getString();
-			if (secret == null || secret.length() == 0) {
-				display.setCurrent(fOptions);
+			loadProfiles();
+			if (listProfiles.size() > 1) {
+				Display.getDisplay(this).setCurrent(listProfiles);
 			} else {
-				// use validation - to check loaded data
-				commandAction(cmdOK, null);
+				loadSelectedProfile();
 			}
 			timer.schedule(refreshTokenTask, 0L, 1000L);
-
 		} catch (Exception e) {
 			debugErr("TOTPMIDlet.startApp() - " + e.getMessage());
 			error(e);
@@ -227,11 +256,14 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 *      javax.microedition.lcdui.Displayable)
 	 */
 	public void commandAction(Command aCmd, Displayable aDisp) {
-		debug("Options - Command action " + aCmd);
+		if (DEBUG && aCmd != null) {
+			debug("Options - Command action: " + aCmd.getLabel());
+		}
 		final Display display = Display.getDisplay(this);
 		if (aCmd == cmdOK) {
 			final String warning = validateInput();
 			if (warning.length() == 0) {
+				siProfile.setText(tfProfile.getString());
 				final int algorithmIdx = chgHmacAlgorithm.getSelectedIndex();
 				final byte[] secretKey = base32Decode(tfSecret.getString());
 				HMac newHmac = null;
@@ -250,9 +282,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				setHMac(newHmac);
 				refreshTokenTask.run();
 				display.setCurrent(fMain);
+				save();
 			} else {
-				alInvalid.setString("Invalid input:\n" + warning);
-				display.setCurrent(alInvalid, fOptions);
+				displayAlert("Invalid input:\n" + warning, fOptions);
 			}
 		} else if (aCmd == cmdGenerator) {
 			final byte[] key = base32Decode(tfSecret.getString());
@@ -260,6 +292,40 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			siKeyHex.setText(key == null ? "" : toHexString(key, 0, key.length));
 			siKeyBase32.setText(base32Encode(key));
 			display.setCurrent(fGenerator);
+		} else if (aCmd == cmdProfiles) {
+			display.setCurrent(listProfiles);
+		} else if (aCmd == cmdAddProfile) {
+			final Calendar cal = Calendar.getInstance();
+			// use date-time as generated profile name YYYYMMDD-HHMMSS
+			final String profileName = cal.get(Calendar.YEAR) + zeroLeftPad(cal.get(Calendar.MONTH + 1), 2)
+					+ zeroLeftPad(cal.get(Calendar.DAY_OF_MONTH), 2) + "-"
+					+ zeroLeftPad(cal.get(Calendar.HOUR_OF_DAY), 2) + zeroLeftPad(cal.get(Calendar.MINUTE), 2)
+					+ zeroLeftPad(cal.get(Calendar.SECOND), 2);
+			if (DEBUG)
+				debug("Creating profile" + profileName);
+			listProfiles.append(profileName, null);
+			listProfiles.setSelectedIndex(listProfiles.size() - 1, true);
+			int[] newRecIds = new int[recordIds.length + 1];
+			System.arraycopy(recordIds, 0, newRecIds, 0, recordIds.length);
+			recordIds = newRecIds;
+			final byte[] profileConfig = getProfileConfig(profileName, EMPTY_BYTE_ARRAY, DEFAULT_TIMESTEP,
+					DEFAULT_HMAC_ALG_IDX, DEFAULT_DIGITS, DEFAULT_DELTA);
+			recordIds[recordIds.length - 1] = addProfileToRecordStore(profileConfig);
+		} else if (aDisp == listProfiles && aCmd == List.SELECT_COMMAND) {
+			if (listProfiles.getSelectedIndex() >= 0)
+				loadSelectedProfile();
+		} else if (aCmd == cmdRemoveProfile) {
+			switch (listProfiles.size()) {
+			case 0:
+				displayAlert("There is no profile to delete.", listProfiles);
+				break;
+			case 1:
+				displayAlert("You can't remove the last profile.", listProfiles);
+				break;
+			default:
+				removeProfile(listProfiles.getSelectedIndex());
+				break;
+			}
 		} else if (aCmd == cmdNewKey) {
 			final byte[] secretKey = generateNewKey();
 			siKeyHex.setText(toHexString(secretKey, 0, secretKey.length));
@@ -278,6 +344,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			tfDigits.setString(Integer.toString(DEFAULT_DIGITS));
 			chgHmacAlgorithm.setSelectedIndex(DEFAULT_HMAC_ALG_IDX, true);
 			tfDelta.setString(Integer.toString(DEFAULT_DELTA));
+			tfProfile.setString(listProfiles.getString(listProfiles.getSelectedIndex()));
 		} else if (aCmd == cmdExit) {
 			destroyApp(false);
 		}
@@ -308,7 +375,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		hmac.update(msg, 0, msg.length);
 		hmac.doFinal(hash, 0);
 
-		// Transform the HMAC to a HOTP value according to RFC 4226. 
+		// Transform the HMAC to a HOTP value according to RFC 4226.
 		final int off = hash[hash.length - 1] & 0xF;
 		// Truncate the HMAC (look at RFC 4226 section 5.3, step 2).
 		int binary = ((hash[off] & 0x7f) << 24) | ((hash[off + 1] & 0xff) << 16) | ((hash[off + 2] & 0xff) << 8)
@@ -323,23 +390,40 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		return new String(digitsArray, 0, digits);
 	}
 
+	/**
+	 * Returns counter value for given time and timeStep.
+	 * 
+	 * @param timeInSec
+	 * @param timeStep
+	 * @return counter (HOTP)
+	 */
 	protected static long getCounter(final long timeInSec, final int timeStep) {
 		return timeStep > 0 ? timeInSec / timeStep : INVALID_COUNTER;
 	}
 
 	// Private methods -------------------------------------------------------
 
+	/**
+	 * Returns HMac.
+	 * 
+	 * @return
+	 */
 	private synchronized HMac getHMac() {
 		return hmac;
 	}
 
+	/**
+	 * Sets HMac.
+	 * 
+	 * @param hmac
+	 */
 	private synchronized void setHMac(HMac hmac) {
 		this.hmac = hmac;
 	}
 
 	/**
 	 * Validates (and makes basic corrections in) the options form. It returns
-	 * warning message(s) if the validation error occures. An empty string is
+	 * warning message(s) if the validation error occurs. An empty string is
 	 * returned if the validation is successful.
 	 * 
 	 * @return warning message
@@ -416,125 +500,383 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	}
 
 	/**
-	 * Loads configuration from the record stores. It doesn't update the GUI,
-	 * but only the parameters.
+	 * Shows {@link Alert} warning screen with given message.
 	 * 
-	 * @throws Exception
+	 * @param msg
+	 * @param nextDisplayable
+	 *            Next screen, which is displayed after warning confirmation by
+	 *            a user.
 	 */
-	private void load() throws Exception {
-		RecordStore tmpRS = null;
-
-		try {
-			tmpRS = RecordStore.openRecordStore(STORE_KEY, false);
-
-			if ((tmpRS != null) && (tmpRS.getNumRecords() > 0)) {
-				tfSecret.setString(base32Encode(tmpRS.getRecord(1)));
-			}
-		} catch (RecordStoreNotFoundException e) {
-			debug(e.getMessage());
-		} finally {
-			if (tmpRS != null) {
-				tmpRS.closeRecordStore();
-			}
-		}
-
-		try {
-			tmpRS = RecordStore.openRecordStore(STORE_CONFIG, false);
-
-			if ((tmpRS != null) && (tmpRS.getNumRecords() > 0)) {
-				byte[] bytes = tmpRS.getRecord(1);
-				ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-				DataInputStream dis = new DataInputStream(bais);
-				loadConfig(dis);
-				dis.close();
-			}
-		} catch (RecordStoreNotFoundException e) {
-			debug(e.getMessage());
-		} catch (Exception e) {
-			if (tmpRS != null) {
-				tmpRS.closeRecordStore();
-				tmpRS = null;
-				RecordStore.deleteRecordStore(STORE_CONFIG);
-			}
-		} finally {
-			if (tmpRS != null) {
-				tmpRS.closeRecordStore();
-			}
-		}
+	private void displayAlert(final String msg, Displayable nextDisplayable) {
+		alertWarn.setString(msg);
+		Display.getDisplay(this).setCurrent(alertWarn, nextDisplayable);
 	}
 
 	/**
-	 * Saves key and configuration.
+	 * Adds new profile to {@link RecordStore} and returns ID of the new record.
+	 * It returns -1 if adding fails.
 	 * 
-	 * @throws Exception
+	 * @param configBytes
+	 *            byte array profile representation
+	 * @return new record ID or -1 (if adding fails)
 	 */
-	private void save() throws Exception {
+	private int addProfileToRecordStore(final byte[] configBytes) {
 		RecordStore tmpRS = null;
-
 		try {
-			final byte[] key = base32Decode(tfSecret.getString());
-			if (key == null) {
-				RecordStore.deleteRecordStore(STORE_KEY);
-			} else {
-				tmpRS = RecordStore.openRecordStore(STORE_KEY, true);
-				if (tmpRS.getNumRecords() == 0) {
-					tmpRS.addRecord(key, 0, key.length);
-				} else {
-					tmpRS.setRecord(1, key, 0, key.length);
+			tmpRS = RecordStore.openRecordStore(STORE_PROFILE_CONFIG, true);
+			return tmpRS.addRecord(configBytes, 0, configBytes.length);
+		} catch (Exception e) {
+			debugErr("addProfile - " + e.getClass().getName() + " - " + e.getMessage());
+		} finally {
+			if (tmpRS != null) {
+				try {
+					tmpRS.closeRecordStore();
+				} catch (RecordStoreException e) {
+					debugErr("addProfile (close) - " + e.getClass().getName() + " - " + e.getMessage());
 				}
 			}
-		} catch (RecordStoreNotFoundException e) {
-			// OK - can't delete if doesn't exist
-		} finally {
-			if (tmpRS != null) {
-				tmpRS.closeRecordStore();
-			}
 		}
+		return -1;
+	}
 
+	/**
+	 * Removes record with given ID from a {@link RecordStore} with given name.
+	 * 
+	 * @param storeName
+	 * @param recordIdx
+	 */
+	private void removeRecordFromStore(final String storeName, final int recordIdx) {
+		RecordStore tmpRS = null;
 		try {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			DataOutputStream dos = new DataOutputStream(baos);
-			saveConfig(dos);
-			dos.flush();
-
-			byte[] bytes = baos.toByteArray();
-			tmpRS = RecordStore.openRecordStore(STORE_CONFIG, true);
-
-			if (tmpRS.getNumRecords() == 0) {
-				tmpRS.addRecord(bytes, 0, bytes.length);
-			} else {
-				tmpRS.setRecord(1, bytes, 0, bytes.length);
+			tmpRS = RecordStore.openRecordStore(storeName, false);
+			if (tmpRS.getNumRecords() > recordIdx) {
+				tmpRS.deleteRecord(recordIdx + 1);
 			}
-
-			dos.close();
+		} catch (RecordStoreNotFoundException e) {
+			if (DEBUG)
+				debug("removeRecordFromStore - RecordStoreNotFoundException - " + storeName);
+		} catch (Exception e) {
+			debugErr("removeRecordFromStore - " + e.getClass().getName() + " - " + storeName + " - " + recordIdx + ": "
+					+ e.getMessage());
 		} finally {
 			if (tmpRS != null) {
-				tmpRS.closeRecordStore();
+				try {
+					tmpRS.closeRecordStore();
+				} catch (RecordStoreException e) {
+					debugErr("removeRecordFromStore (close) - " + e.getClass().getName() + " - " + storeName + " - "
+							+ recordIdx + ": " + e.getMessage());
+				}
 			}
 		}
 	}
 
 	/**
-	 * Loads configuration from given DataInput
+	 * Sets record with given ID and value to a {@link RecordStore} with given
+	 * name.
 	 * 
-	 * @param aDis
-	 * @throws Exception
+	 * @param storeName
+	 * @param recordId
+	 * @param value
+	 * @return
 	 */
-	private void loadConfig(DataInput aDis) throws Exception {
-		final int timeStep = aDis.readInt();
-		final boolean hasKey = tfSecret.getString() != null && tfSecret.getString().length() > 0;
-		gauValidity.setMaxValue((hasKey && timeStep > 1) ? timeStep - 1 : INDEFINITE);
-		tfTimeStep.setString(String.valueOf(timeStep));
-		chgHmacAlgorithm.setSelectedIndex(aDis.readInt(), true);
-		tfDigits.setString(String.valueOf(aDis.readByte()));
-		tfDelta.setString(String.valueOf(aDis.readInt()));
+	private boolean saveRecordToStore(final String storeName, final int recordId, final byte[] value) {
+		RecordStore tmpRS = null;
+		try {
+			tmpRS = RecordStore.openRecordStore(storeName, true);
+			tmpRS.setRecord(recordId, value, 0, value.length);
+		} catch (Exception e) {
+			debugErr("saveRecordToStore - " + e.getClass().getName() + " - " + storeName + " - " + recordId + ": "
+					+ e.getMessage());
+			return false;
+		} finally {
+			if (tmpRS != null) {
+				try {
+					tmpRS.closeRecordStore();
+				} catch (RecordStoreException e) {
+					debugErr("saveRecordToStore (close) - " + e.getClass().getName() + " - " + storeName + " - "
+							+ recordId + ": " + e.getMessage());
+				}
+			}
+		}
+		return true;
 	}
 
-	private void saveConfig(DataOutput aDos) throws Exception {
-		aDos.writeInt(Integer.parseInt(tfTimeStep.getString()));
-		aDos.writeInt(chgHmacAlgorithm.getSelectedIndex());
-		aDos.writeByte(Integer.parseInt(tfDigits.getString()));
-		aDos.writeInt(Integer.parseInt(tfDelta.getString()));
+	/**
+	 * Loads value of a record with given ID from a {@link RecordStore} with
+	 * given name.
+	 * 
+	 * @param storeName
+	 * @param recordId
+	 * @return
+	 */
+	private byte[] loadRecordFromStore(final String storeName, final int recordId) {
+		RecordStore tmpRS = null;
+		byte[] value = EMPTY_BYTE_ARRAY;
+		try {
+			tmpRS = RecordStore.openRecordStore(storeName, false);
+			value = tmpRS.getRecord(recordId);
+		} catch (RecordStoreNotFoundException e) {
+			if (DEBUG) {
+				debug("loadRecordFromStore - RecordStoreNotFoundException - " + storeName);
+			}
+		} catch (Exception e) {
+			debugErr("loadRecordFromStore - " + e.getClass().getName() + " - " + storeName + " - " + recordId + ": "
+					+ e.getMessage());
+		} finally {
+			if (tmpRS != null) {
+				try {
+					tmpRS.closeRecordStore();
+				} catch (RecordStoreException e) {
+					debugErr("loadRecordFromStore (close) - " + e.getClass().getName() + " - " + storeName + " - "
+							+ recordId + ": " + e.getMessage());
+				}
+			}
+		}
+		return value;
+	}
+
+	/**
+	 * Removes profile with given index from GUI list and the
+	 * {@link RecordStore}.
+	 * 
+	 * @param profileIdx
+	 */
+	private void removeProfile(final int profileIdx) {
+		if (profileIdx >= listProfiles.size() || profileIdx < 0) {
+			return;
+		}
+		listProfiles.delete(profileIdx);
+		listProfiles.setSelectedIndex(profileIdx < listProfiles.size() ? profileIdx : profileIdx - 1, true);
+		removeRecordFromStore(STORE_PROFILE_CONFIG, recordIds[profileIdx]);
+		int[] newRecIds = new int[recordIds.length - 1];
+		System.arraycopy(recordIds, 0, newRecIds, 0, profileIdx);
+		System.arraycopy(recordIds, profileIdx + 1, newRecIds, profileIdx, newRecIds.length - profileIdx);
+		recordIds = newRecIds;
+	}
+
+	/**
+	 * Loads configuration of the selected profile.
+	 */
+	private void loadSelectedProfile() {
+		final int profileIdx = listProfiles.getSelectedIndex();
+
+		String base32EncodedSecret = base32Encode(loadRecordFromStore(STORE_KEY_OLD, 1));
+		if (base32EncodedSecret.length() > 0) {
+			debug("Loading old config.");
+
+			final byte[] configBytes = loadRecordFromStore(STORE_CONFIG_OLD, 1);
+			loadConfigOld(configBytes);
+			tfProfile.setString(DEFAULT_PROFILE);
+			save();
+			try {
+				RecordStore.deleteRecordStore(STORE_KEY_OLD);
+			} catch (RecordStoreException e) {
+				//nothing to do here
+			}
+			try {
+				RecordStore.deleteRecordStore(STORE_CONFIG_OLD);
+			} catch (RecordStoreException e) {
+				//nothing to do here
+			}
+		} else {
+			// load from profile
+			debug("Loading profile config record.");
+			final byte[] profileConfig = loadRecordFromStore(STORE_PROFILE_CONFIG, recordIds[profileIdx]);
+			ByteArrayInputStream bais = new ByteArrayInputStream(profileConfig);
+			DataInputStream dis = new DataInputStream(bais);
+			try {
+				tfProfile.setString(dis.readUTF());
+				byte[] key = new byte[dis.readByte()];
+				dis.readFully(key);
+				base32EncodedSecret = base32Encode(key);
+				tfTimeStep.setString(String.valueOf(dis.readInt()));
+				chgHmacAlgorithm.setSelectedIndex(dis.readInt(), true);
+				tfDigits.setString(String.valueOf(dis.readByte()));
+				tfDelta.setString(String.valueOf(dis.readInt()));
+			} catch (Exception e) {
+				e.printStackTrace();
+				debugErr("loading profile configuration - " + e.getClass().getName() + " - " + e.getMessage());
+			} finally {
+				try {
+					dis.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		tfSecret.setString(base32EncodedSecret);
+		siProfile.setText(tfProfile.getString());
+		siToken.setText("");
+		int timeStep = -1;
+		try {
+			timeStep = Integer.parseInt(tfTimeStep.getString());
+		} catch (NumberFormatException e) {
+			debugErr(e.getMessage());
+		}
+		gauValidity.setMaxValue((base32EncodedSecret.length() > 0 && timeStep > 1) ? timeStep - 1 : INDEFINITE);
+		if (base32EncodedSecret.length() == 0) {
+			final Display display = Display.getDisplay(this);
+			display.setCurrent(fOptions);
+		} else {
+			// use validation - to check loaded data
+			commandAction(cmdOK, null);
+		}
+	}
+
+	/**
+	 * Loads list of profile names and IDs from the {@link RecordStore}.
+	 */
+	private void loadProfiles() {
+		RecordStore tmpRS = null;
+		for (int i = 0, n = listProfiles.size(); i < n; i++)
+			listProfiles.delete(0);
+		recordIds = new int[0];
+		try {
+			tmpRS = RecordStore.openRecordStore(STORE_PROFILE_CONFIG, true);
+			if (tmpRS.getNumRecords() == 0) {
+				debug("Adding default configuration record.");
+				tmpRS.addRecord(DEFAULT_CONFIG_BYTES, 0, DEFAULT_CONFIG_BYTES.length);
+			}
+			//load profile record IDs
+			recordIds = new int[tmpRS.getNumRecords()];
+			RecordEnumeration recEnum = tmpRS.enumerateRecords(null, null, false);
+			int i = 0;
+			while (recEnum.hasNextElement()) {
+				recordIds[i++] = recEnum.nextRecordId();
+			}
+			//sort record IDs
+			for (i = 0; i < recordIds.length; i++) {
+				for (int j = (recordIds.length - 1); j >= (i + 1); j--) {
+					if (recordIds[j] < recordIds[j - 1]) {
+						final int tmp = recordIds[j];
+						recordIds[j] = recordIds[j - 1];
+						recordIds[j - 1] = tmp;
+					}
+				}
+			}
+			// load profile names
+			for (i = 0; i < recordIds.length; i++) {
+				final int recordId = recordIds[i];
+				debug("Parsing profile name for record " + recordId);
+				final String profileName = parseProfileName(tmpRS.getRecord(recordId));
+				debug("Parsed profile name: " + profileName);
+				listProfiles.append(profileName, null);
+			}
+			if (listProfiles.getSelectedIndex() < 0)
+				listProfiles.setSelectedIndex(0, true);
+		} catch (Exception e) {
+			debugErr("loadProfiles - " + e.getClass().getName() + " - " + e.getMessage());
+		} finally {
+			if (tmpRS != null) {
+				try {
+					tmpRS.closeRecordStore();
+				} catch (RecordStoreException e) {
+					debug("loadProfiles (close) - " + e.getClass().getName() + " - " + e.getMessage());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Returns profile name from given profile record value.
+	 * 
+	 * @param profileBytes
+	 * @return profile name
+	 */
+	private String parseProfileName(byte[] profileBytes) {
+		final ByteArrayInputStream bais = new ByteArrayInputStream(profileBytes);
+		final DataInputStream dis = new DataInputStream(bais);
+		try {
+			return dis.readUTF();
+		} catch (IOException e) {
+			debugErr(e.getMessage());
+		} finally {
+			try {
+				dis.close();
+			} catch (IOException e) {
+				debugErr(e.getMessage());
+			}
+		}
+		return DEFAULT_PROFILE;
+	}
+
+	/**
+	 * Saves profile to a record store.
+	 */
+	private void save() {
+		final int profileIdx = listProfiles.getSelectedIndex();
+		final int recordId = recordIds[profileIdx];
+
+		//store configuration of current profile
+		final byte[] configBytes = getProfileConfig(tfProfile.getString(), base32Decode(tfSecret.getString()),
+				Integer.parseInt(tfTimeStep.getString()), chgHmacAlgorithm.getSelectedIndex(),
+				Integer.parseInt(tfDigits.getString()), Integer.parseInt(tfDelta.getString()));
+		saveRecordToStore(STORE_PROFILE_CONFIG, recordId, configBytes);
+
+		// update also profile name
+		listProfiles.set(profileIdx, tfProfile.getString(), null);
+	}
+
+	/**
+	 * Loads old (1.3) configuration.
+	 * 
+	 * @param bytes
+	 */
+	private void loadConfigOld(byte[] bytes) {
+		ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+		DataInputStream dis = new DataInputStream(bais);
+		try {
+			final int timeStep = dis.readInt();
+			tfTimeStep.setString(String.valueOf(timeStep));
+			chgHmacAlgorithm.setSelectedIndex(dis.readInt(), true);
+			tfDigits.setString(String.valueOf(dis.readByte()));
+			tfDelta.setString(String.valueOf(dis.readInt()));
+		} catch (Exception e) {
+			debugErr("loading old configuration - " + e.getClass().getName() + " - " + e.getMessage());
+		} finally {
+			try {
+				dis.close();
+			} catch (IOException e) {
+				debugErr("loading old configuration (close) - " + e.getClass().getName() + " - " + e.getMessage());
+			}
+		}
+	}
+
+	/**
+	 * Creates profile record from provided values.
+	 * 
+	 * @param profileName
+	 * @param key
+	 * @param timeStep
+	 * @param hmacIdx
+	 * @param digits
+	 * @param delta
+	 * @return
+	 */
+	private static byte[] getProfileConfig(String profileName, byte[] key, int timeStep, int hmacIdx, int digits,
+			int delta) {
+		if (key == null)
+			key = EMPTY_BYTE_ARRAY;
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		final DataOutputStream dos = new DataOutputStream(baos);
+		try {
+			dos.writeUTF(profileName);
+			dos.writeByte(key.length);
+			dos.write(key);
+			dos.writeInt(timeStep);
+			dos.writeInt(hmacIdx);
+			dos.writeByte(digits);
+			dos.writeInt(delta);
+		} catch (IOException e) {
+			debugErr("Creating configuration failed - " + e.getMessage());
+		} finally {
+			try {
+				dos.close();
+			} catch (IOException e) {
+				debugErr("Creating configuration failed (close)- " + e.getMessage());
+			}
+		}
+		return baos.toByteArray();
 	}
 
 	/**
@@ -573,7 +915,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	}
 
 	/**
-	 * Encodes byte array to Base32 String.
+	 * Encodes byte array to Base32 String. Returns not-null String.
 	 * 
 	 * @param bytes
 	 *            Bytes to encode.
@@ -591,7 +933,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		while (i < bytes.length) {
 			currByte = (bytes[i] >= 0) ? bytes[i] : (bytes[i] + 256); // unsign
 
-			/* Is the current digit going to span a byte boundary? */
+			// Is the current digit going to span a byte boundary?
 			if (index > 3) {
 				if ((i + 1) < bytes.length) {
 					nextByte = (bytes[i + 1] >= 0) ? bytes[i + 1] : (bytes[i + 1] + 256);
@@ -692,6 +1034,11 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		return s.toString();
 	}
 
+	/**
+	 * Generates a new random secret key.
+	 * 
+	 * @return secret key suitable for selected HMac Algorithm
+	 */
 	private byte[] generateNewKey() {
 		byte[] result = new byte[HMAC_BYTE_COUNT[chgHmacAlgorithm.getSelectedIndex()]];
 		for (int i = 0, len = result.length; i < len;)
@@ -700,8 +1047,34 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		return result;
 	}
 
+	/**
+	 * Returns lenght of Base32 encoded string for the given count of bytes.
+	 * 
+	 * @param byteCount
+	 * @return
+	 */
 	private static int getBase32Len(int byteCount) {
 		return byteCount / 5 * 8 + BASE32_LEN[byteCount % 5];
+	}
+
+	/**
+	 * Zero-left-padding for integer values. If a length of given integer
+	 * converted to string is smaller than len, then zeroes are filled on the
+	 * left side so the resulting string has lenght=len.
+	 * 
+	 * @param value
+	 * @param len
+	 * @return
+	 */
+	private static String zeroLeftPad(int value, int len) {
+		final String strValue = String.valueOf(value);
+		if (strValue.length() >= len)
+			return strValue;
+		final StringBuffer sb = new StringBuffer(len);
+		for (int i = strValue.length(); i < len; i++) {
+			sb.append("0");
+		}
+		return sb.append(strValue).toString();
 	}
 
 	// Embedded classes ------------------------------------------------------
@@ -748,9 +1121,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				remainSec = 0;
 				siToken.setText("");
 				cachedCounter = INVALID_COUNTER;
-			}
-			if (DEBUG) {
-				debug("Remaining time (sec): " + Integer.toString(remainSec) + ", Token: " + siToken.getText());
 			}
 			// set values (and repaint) only if needed
 			if (gauValidity.getValue() != remainSec) {
