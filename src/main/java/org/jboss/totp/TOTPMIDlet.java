@@ -238,12 +238,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 * @see javax.microedition.midlet.MIDlet#destroyApp(boolean)
 	 */
 	public void destroyApp(boolean unconditional) {
-		try {
-			save();
-		} catch (Exception e) {
-			debugErr("Saving config in destroyApp failed: " + e.getMessage());
-			error(e);
-		}
 		refreshTokenTask.cancel();
 		timer.cancel();
 		notifyDestroyed();
@@ -543,20 +537,20 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 * Removes record with given ID from a {@link RecordStore} with given name.
 	 * 
 	 * @param storeName
-	 * @param recordIdx
+	 * @param recordId
 	 */
-	private void removeRecordFromStore(final String storeName, final int recordIdx) {
+	private void removeRecordFromStore(final String storeName, final int recordId) {
 		RecordStore tmpRS = null;
+		if (DEBUG)
+			debug("removeRecordFromStore - " + storeName + " - " + recordId);
 		try {
 			tmpRS = RecordStore.openRecordStore(storeName, false);
-			if (tmpRS.getNumRecords() > recordIdx) {
-				tmpRS.deleteRecord(recordIdx + 1);
-			}
+			tmpRS.deleteRecord(recordId);
 		} catch (RecordStoreNotFoundException e) {
 			if (DEBUG)
 				debug("removeRecordFromStore - RecordStoreNotFoundException - " + storeName);
 		} catch (Exception e) {
-			debugErr("removeRecordFromStore - " + e.getClass().getName() + " - " + storeName + " - " + recordIdx + ": "
+			debugErr("removeRecordFromStore - " + e.getClass().getName() + " - " + storeName + " - " + recordId + ": "
 					+ e.getMessage());
 		} finally {
 			if (tmpRS != null) {
@@ -564,7 +558,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 					tmpRS.closeRecordStore();
 				} catch (RecordStoreException e) {
 					debugErr("removeRecordFromStore (close) - " + e.getClass().getName() + " - " + storeName + " - "
-							+ recordIdx + ": " + e.getMessage());
+							+ recordId + ": " + e.getMessage());
 				}
 			}
 		}
