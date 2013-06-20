@@ -36,6 +36,8 @@ Check [Release notes](https://github.com/kwart/totp-me/blob/master/ReleaseNotes-
 ## Screenshots
 
 ![Main screen](http://sourceforge.net/p/totpme/screenshot/totp-me-main.png)
+![List of profiles/accounts](http://sourceforge.net/p/totpme/screenshot/totp-me-profiles.png)
+
 ![Options screen](http://sourceforge.net/p/totpme/screenshot/totp-me-options.png)
 ![Key generator](http://sourceforge.net/p/totpme/screenshot/totp-me-key-generator.png)
 
