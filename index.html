@@ -36,7 +36,8 @@
         <span class="blc"></span><span class="trc"></span>
         </div>
         <article class="markdown-body">
-          <h1>TOTP for Java ME</h1>
+          <h1>
+<a name="totp-for-java-me" class="anchor" href="#totp-for-java-me"><span class="octicon octicon-link"></span></a>TOTP for Java ME</h1>
 
 <p>Java ME TOTP (<a href="http://tools.ietf.org/html/rfc6238">RFC 6238</a>) authenticator. It can be used as a token generator for</p>
 
@@ -44,23 +45,27 @@
 <li>Google's two phase authentication</li>
 <li>LinOTP authentication</li>
 <li>other authentication servers which support TOTP</li>
-</ul><h2>Download</h2>
+</ul><h2>
+<a name="download" class="anchor" href="#download"><span class="octicon octicon-link"></span></a>Download</h2>
 
-<p>Download the <a href="https://sourceforge.net/projects/totpme/files/latest/download">latest binaries</a> 
+<p>Download the <a href="https://sourceforge.net/projects/totpme/files/latest/download">latest binaries</a>
 from the <a href="https://sourceforge.net/projects/totpme/">SourceForge project pages</a>.</p>
 
 <p>If you want to use direct installation to your device, use either <a href="http://totpme.sourceforge.net/totp-me.jad">JAD</a>
 or <a href="http://totpme.sourceforge.net/totp-me.jar">JAR</a>.</p>
 
-<h2>Features</h2>
+<h2>
+<a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h2>
 
 <p>Key (and only) features:</p>
 
 <ul>
+<li>multiple profiles/accounts supported</li>
 <li>configurable parameters
 
 <ul>
-<li>secret key (shared)</li>
+<li>secret key</li>
+<li>profile name</li>
 <li>digest algorithm: SHA-1 (default), SHA-256, SHA-512</li>
 <li>number of token digits (default is 6)</li>
 <li>time step (default is 30)</li>
@@ -70,26 +75,33 @@ during computing a token value</li>
 </li>
 <li>input validation</li>
 <li>key generator with Base32 and HEX output</li>
-</ul><h3>Change log</h3>
+</ul><h3>
+<a name="change-log" class="anchor" href="#change-log"><span class="octicon octicon-link"></span></a>Change log</h3>
 
 <p>Check <a href="https://github.com/kwart/totp-me/blob/master/ReleaseNotes-README.md">Release notes</a> for the list of changes.</p>
 
-<h2>Screenshots</h2>
+<h2>
+<a name="screenshots" class="anchor" href="#screenshots"><span class="octicon octicon-link"></span></a>Screenshots</h2>
 
-<p><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-main.png" alt="Main screen"><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-options.png" alt="Options screen"><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-key-generator.png" alt="Key generator"></p>
+<p><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-main.png" alt="Main screen"><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-profiles.png" alt="List of profiles/accounts"></p>
 
-<h2>How to install it</h2>
+<p><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-options.png" alt="Options screen"><img src="http://sourceforge.net/p/totpme/screenshot/totp-me-key-generator.png" alt="Key generator"></p>
+
+<h2>
+<a name="how-to-install-it" class="anchor" href="#how-to-install-it"><span class="octicon octicon-link"></span></a>How to install it</h2>
 
 <p>Unzip files from the distribution package and copy <code>totp-me.jar</code> to your device which supports Java ME.
 Some devices may also need the description file <code>totp-me.jad</code> to be copied together with the JAR.</p>
 
-<h2>How to use it</h2>
+<h2>
+<a name="how-to-use-it" class="anchor" href="#how-to-use-it"><span class="octicon octicon-link"></span></a>How to use it</h2>
 
-<p>You either have already a secret key, then fill it as Base32 encoded String after the start (Options 
+<p>You either have already a secret key, then fill it as Base32 encoded String after the start (Options
 form is displayed if no key is set already). Or you can generate the secret key directly by the application and then
 fill it as a shared secret in the authentication server.</p>
 
-<h3>Generate new secret key</h3>
+<h3>
+<a name="generate-new-secret-key" class="anchor" href="#generate-new-secret-key"><span class="octicon octicon-link"></span></a>Generate new secret key</h3>
 
 <ul>
 <li>choose your preferred digest algorithm in the <code>Options</code> screen (the default is <code>SHA-1</code>)</li>
@@ -97,22 +109,25 @@ fill it as a shared secret in the authentication server.</p>
 <li>use <code>New key</code> command to generate a new key, you can use it more times if you are not satisfied with the generated value</li>
 <li>fill the <code>HEX</code> value in you authentication server configuration</li>
 <li>press <code>OK</code> command and you will be switched back to the <code>Options</code> screen; confirm your configuration and press <code>OK</code> command again</li>
-<li>if no problem occurs, you are switched to the main application screen, where the <code>Token</code> value is already present </li>
+<li>if no problem occurs, you are switched to the main application screen, where the <code>Token</code> value is already present</li>
 <li><em>you can synchronize the authentication server with your token now</em></li>
-</ul><h2>Development</h2>
+</ul><h2>
+<a name="development" class="anchor" href="#development"><span class="octicon octicon-link"></span></a>Development</h2>
 
 <p>You can simply build the software yourself.</p>
 
-<h3>How to get the sources</h3>
+<h3>
+<a name="how-to-get-the-sources" class="anchor" href="#how-to-get-the-sources"><span class="octicon octicon-link"></span></a>How to get the sources</h3>
 
 <p>You should have <a href="http://git-scm.com/">git</a> installed</p>
 
-<pre><code>$ git clone git://github.com/kwart/topt-me.git
+<pre><code>$ git clone git://github.com/kwart/totp-me.git
 </code></pre>
 
 <p>or you can download <a href="https://github.com/kwart/totp-me/archive/master.zip">current sources as a zip file</a></p>
 
-<h3>How to build it</h3>
+<h3>
+<a name="how-to-build-it" class="anchor" href="#how-to-build-it"><span class="octicon octicon-link"></span></a>How to build it</h3>
 
 <p>You need to have <a href="http://maven.apache.org/">Maven</a> installed</p>
 
@@ -120,14 +135,23 @@ fill it as a shared secret in the authentication server.</p>
 $ mvn clean package
 </code></pre>
 
-<h3>How to run it in the Microemulator</h3>
+<p>This default build uses Microemulator API implementation to simplify the build process, but it's only MIDP-2.0
+implementation. To be sure the source code is <strong>MIDP-1.0 compatible</strong>, you should install Oracle WTK and provide
+path to it to Maven as <code>wtk.home</code> system property</p>
 
-<p>Just use <code>exec:java</code> goal after you've successfully built the project </p>
+<pre><code>$ mvn clean package -Dwtk.home=/opt/WTK2.5.2
+</code></pre>
+
+<h3>
+<a name="how-to-run-it-in-the-microemulator" class="anchor" href="#how-to-run-it-in-the-microemulator"><span class="octicon octicon-link"></span></a>How to run it in the Microemulator</h3>
+
+<p>Just use <code>exec:java</code> goal after you've successfully built the project</p>
 
 <pre><code>$ mvn exec:java
 </code></pre>
 
-<h2>License</h2>
+<h2>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
 
 <ul>
 <li><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a></li>
@@ -142,7 +166,7 @@ $ mvn clean package
 
       </div>
       <div class="creds">
-        <small>This page generated using <a href="https://pages.github.com/">GitHub Pages</a><br/>theme by <a href="http://twitter.com/jonrohan/">Jon Rohan</a></small>
+        <small>This page generated using <a href="https://pages.github.com/">GitHub Pages</a><br/>theme by <a href="https://twitter.com/jonrohan/">Jon Rohan</a></small>
       </div>
     </footer>
   </div>
