@@ -107,10 +107,10 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	// GUI components
 	// main screen
 	private Command cmdExit = new Command("Exit", Command.EXIT, 1);
-	private Command cmdOptions = new Command("Options", Command.SCREEN, 1);
-	private Command cmdProfiles = new Command("Profiles", Command.SCREEN, 1);
+	private Command cmdProfiles = new Command("Profiles", Command.SCREEN, 2);
+	private Command cmdOptions = new Command("Options", Command.SCREEN, 3);
 	// main+options screen
-	private Command cmdGenerator = new Command("Key generator", Command.SCREEN, 1);
+	private Command cmdGenerator = new Command("Key generator", Command.SCREEN, 4);
 	// options screen
 	private Command cmdOK = new Command("OK", Command.OK, 1);
 	private Command cmdReset = new Command("Default values", Command.SCREEN, 3);
@@ -118,8 +118,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private Command cmdNewKey = new Command("New key", Command.SCREEN, 1);
 	private Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
 	// profiles screen
-	private Command cmdAddProfile = new Command("Add profile", Command.SCREEN, 1);
-	private Command cmdRemoveProfile = new Command("Remove profile", Command.SCREEN, 1);
+	private Command cmdAddProfile = new Command("Add", Command.SCREEN, 1);
+	private Command cmdRemoveProfile = new Command("Remove", Command.SCREEN, 2);
 
 	private final StringItem siKeyHex = new StringItem("HEX", null);
 	private final StringItem siKeyBase32 = new StringItem("Base32", null);
