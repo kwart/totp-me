@@ -291,7 +291,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		} else if (aCmd == cmdAddProfile) {
 			final Calendar cal = Calendar.getInstance();
 			// use date-time as generated profile name YYYYMMDD-HHMMSS
-			final String profileName = cal.get(Calendar.YEAR) + zeroLeftPad(cal.get(Calendar.MONTH + 1), 2)
+			final String profileName = cal.get(Calendar.YEAR) + zeroLeftPad(cal.get(Calendar.MONTH) + 1, 2)
 					+ zeroLeftPad(cal.get(Calendar.DAY_OF_MONTH), 2) + "-"
 					+ zeroLeftPad(cal.get(Calendar.HOUR_OF_DAY), 2) + zeroLeftPad(cal.get(Calendar.MINUTE), 2)
 					+ zeroLeftPad(cal.get(Calendar.SECOND), 2);
