@@ -7,7 +7,7 @@
 
 	<groupId>org.jboss.totp</groupId>
 	<artifactId>totp-me</artifactId>
-	<version>1.5</version>
+	<version>1.6</version>
 	<packaging>jar</packaging>
 
 	<name>TOTP ME</name>
