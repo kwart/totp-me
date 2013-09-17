@@ -141,7 +141,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final Form fMain = new Form("TOTP ME ${project.version}");
 	private final Form fOptions = new Form("TOTP configuration");
 	private final Form fGenerator = new Form("Key generator");
-	private final List listProfiles = new List("Profiles", Choice.IMPLICIT, new String[] { DEFAULT_PROFILE }, null);
+	private final List listProfiles = new List("Profiles", Choice.IMPLICIT);
 
 	private final Timer timer = new Timer();
 	private final RefreshTokenTask refreshTokenTask = new RefreshTokenTask();
@@ -276,7 +276,8 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				setHMac(newHmac);
 				refreshTokenTask.run();
 				display.setCurrent(fMain);
-				save();
+				if (aDisp != null)
+					save();
 			} else {
 				displayAlert("Invalid input:\n" + warning, fOptions);
 			}
@@ -654,48 +655,29 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private void loadSelectedProfile() {
 		final int profileIdx = listProfiles.getSelectedIndex();
 
-		String base32EncodedSecret = base32Encode(loadRecordFromStore(STORE_KEY_OLD, 1));
-		if (base32EncodedSecret.length() > 0) {
-			debug("Loading old config.");
-
-			final byte[] configBytes = loadRecordFromStore(STORE_CONFIG_OLD, 1);
-			loadConfigOld(configBytes);
-			tfProfile.setString(DEFAULT_PROFILE);
-			save();
+		// load from profile
+		debug("Loading profile config record.");
+		final byte[] profileConfig = loadRecordFromStore(STORE_PROFILE_CONFIG, recordIds[profileIdx]);
+		ByteArrayInputStream bais = new ByteArrayInputStream(profileConfig);
+		DataInputStream dis = new DataInputStream(bais);
+		String base32EncodedSecret = null;
+		try {
+			tfProfile.setString(dis.readUTF());
+			byte[] key = new byte[dis.readByte()];
+			dis.readFully(key);
+			base32EncodedSecret = base32Encode(key);
+			tfTimeStep.setString(String.valueOf(dis.readInt()));
+			chgHmacAlgorithm.setSelectedIndex(dis.readInt(), true);
+			tfDigits.setString(String.valueOf(dis.readByte()));
+			tfDelta.setString(String.valueOf(dis.readInt()));
+		} catch (Exception e) {
+			e.printStackTrace();
+			debugErr("loading profile configuration - " + e.getClass().getName() + " - " + e.getMessage());
+		} finally {
 			try {
-				RecordStore.deleteRecordStore(STORE_KEY_OLD);
-			} catch (RecordStoreException e) {
-				//nothing to do here
-			}
-			try {
-				RecordStore.deleteRecordStore(STORE_CONFIG_OLD);
-			} catch (RecordStoreException e) {
-				//nothing to do here
-			}
-		} else {
-			// load from profile
-			debug("Loading profile config record.");
-			final byte[] profileConfig = loadRecordFromStore(STORE_PROFILE_CONFIG, recordIds[profileIdx]);
-			ByteArrayInputStream bais = new ByteArrayInputStream(profileConfig);
-			DataInputStream dis = new DataInputStream(bais);
-			try {
-				tfProfile.setString(dis.readUTF());
-				byte[] key = new byte[dis.readByte()];
-				dis.readFully(key);
-				base32EncodedSecret = base32Encode(key);
-				tfTimeStep.setString(String.valueOf(dis.readInt()));
-				chgHmacAlgorithm.setSelectedIndex(dis.readInt(), true);
-				tfDigits.setString(String.valueOf(dis.readByte()));
-				tfDelta.setString(String.valueOf(dis.readInt()));
-			} catch (Exception e) {
+				dis.close();
+			} catch (IOException e) {
 				e.printStackTrace();
-				debugErr("loading profile configuration - " + e.getClass().getName() + " - " + e.getMessage());
-			} finally {
-				try {
-					dis.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
 			}
 		}
 		tfSecret.setString(base32EncodedSecret);
@@ -722,14 +704,54 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 */
 	private void loadProfiles() {
 		RecordStore tmpRS = null;
-		for (int i = 0, n = listProfiles.size(); i < n; i++)
-			listProfiles.delete(0);
 		recordIds = new int[0];
 		try {
 			tmpRS = RecordStore.openRecordStore(STORE_PROFILE_CONFIG, true);
 			if (tmpRS.getNumRecords() == 0) {
-				debug("Adding default configuration record.");
-				tmpRS.addRecord(DEFAULT_CONFIG_BYTES, 0, DEFAULT_CONFIG_BYTES.length);
+				byte[] newRecord = DEFAULT_CONFIG_BYTES;
+
+				// try to load old-style (1.3) configuration
+				byte[] secret = loadRecordFromStore(STORE_KEY_OLD, 1);
+				if (secret.length > 0) {
+					debug("Loading old config.");
+
+					final byte[] configBytes = loadRecordFromStore(STORE_CONFIG_OLD, 1);
+					final ByteArrayInputStream bais = new ByteArrayInputStream(configBytes);
+					final DataInputStream dis = new DataInputStream(bais);
+					int ts = DEFAULT_TIMESTEP, idx = DEFAULT_HMAC_ALG_IDX, delta = DEFAULT_DELTA;
+					int digits = DEFAULT_DIGITS;
+
+					try {
+						ts = dis.readInt();
+						idx = dis.readInt();
+						digits = dis.readByte();
+						delta = dis.readInt();
+					} catch (Exception e) {
+						debugErr("loading old configuration - " + e.getClass().getName() + " - " + e.getMessage());
+					} finally {
+						try {
+							dis.close();
+						} catch (IOException e) {
+							debugErr("loading old configuration (close) - " + e.getClass().getName() + " - "
+									+ e.getMessage());
+						}
+					}
+					newRecord = getProfileConfig(DEFAULT_PROFILE, secret, ts, idx, digits, delta);
+
+					try {
+						RecordStore.deleteRecordStore(STORE_KEY_OLD);
+					} catch (RecordStoreException e) {
+						//nothing to do here
+					}
+					try {
+						RecordStore.deleteRecordStore(STORE_CONFIG_OLD);
+					} catch (RecordStoreException e) {
+						//nothing to do here
+					}
+				}
+
+				debug("Adding new configuration record.");
+				tmpRS.addRecord(newRecord, 0, newRecord.length);
 			}
 			//load profile record IDs
 			recordIds = new int[tmpRS.getNumRecords()];
@@ -809,31 +831,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 		// update also profile name
 		listProfiles.set(profileIdx, tfProfile.getString(), null);
-	}
-
-	/**
-	 * Loads old (1.3) configuration.
-	 * 
-	 * @param bytes
-	 */
-	private void loadConfigOld(byte[] bytes) {
-		ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-		DataInputStream dis = new DataInputStream(bais);
-		try {
-			final int timeStep = dis.readInt();
-			tfTimeStep.setString(String.valueOf(timeStep));
-			chgHmacAlgorithm.setSelectedIndex(dis.readInt(), true);
-			tfDigits.setString(String.valueOf(dis.readByte()));
-			tfDelta.setString(String.valueOf(dis.readInt()));
-		} catch (Exception e) {
-			debugErr("loading old configuration - " + e.getClass().getName() + " - " + e.getMessage());
-		} finally {
-			try {
-				dis.close();
-			} catch (IOException e) {
-				debugErr("loading old configuration (close) - " + e.getClass().getName() + " - " + e.getMessage());
-			}
-		}
 	}
 
 	/**
