@@ -76,8 +76,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private static final char[] HEX_TABLE = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
 			'e', 'f' };
 
-	private static final int[] BASE32_LEN = { 0, 2, 4, 5, 7, 8 };
-
 	private static final String SHA1 = "SHA-1";
 	private static final String SHA256 = "SHA-256";
 	private static final String SHA512 = "SHA-512";
@@ -437,7 +435,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			str = "";
 		} else {
 			final StringBuffer sb = new StringBuffer();
-			str = str.toUpperCase().replace('0', 'O');
+			str = str.toUpperCase().replace('0', 'O').replace('1', 'L');
 			for (int i = 0; i < str.length(); i++) {
 				char ch = str.charAt(i);
 				if (BASE32_CHARS.indexOf(ch) >= 0) {
@@ -447,12 +445,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			str = sb.toString();
 		}
 		tfSecret.setString(str);
-		final int keyLen = str.length();
-		int expectedBase32Len = getBase32Len(HMAC_BYTE_COUNT[algIdx]);
-		if (keyLen != 0 && keyLen != expectedBase32Len) {
-			warnings.append("Base32 encoded key for ").append(HMAC_ALGORITHMS[algIdx]).append(" must have ")
-					.append(expectedBase32Len).append(" characters.");
-		}
 
 		int step = 0;
 		try {
@@ -466,7 +458,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				warnings.append("\n");
 			warnings.append("Time step must be positive number.");
 		}
-		gauValidity.setMaxValue((keyLen > 0 && step > 1) ? step - 1 : INDEFINITE);
+		gauValidity.setMaxValue((str.length() > 0 && step > 1) ? step - 1 : INDEFINITE);
 
 		int digits = 0;
 		try {
@@ -660,7 +652,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		final byte[] profileConfig = loadRecordFromStore(STORE_PROFILE_CONFIG, recordIds[profileIdx]);
 		ByteArrayInputStream bais = new ByteArrayInputStream(profileConfig);
 		DataInputStream dis = new DataInputStream(bais);
-		String base32EncodedSecret = null;
+		String base32EncodedSecret = "";
 		try {
 			tfProfile.setString(dis.readUTF());
 			byte[] key = new byte[dis.readByte()];
@@ -1036,16 +1028,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			for (int rnd = rand.nextInt(), n = Math.min(len - i, 4); n-- > 0; rnd >>= 8)
 				result[i++] = (byte) rnd;
 		return result;
-	}
-
-	/**
-	 * Returns lenght of Base32 encoded string for the given count of bytes.
-	 * 
-	 * @param byteCount
-	 * @return
-	 */
-	private static int getBase32Len(int byteCount) {
-		return byteCount / 5 * 8 + BASE32_LEN[byteCount % 5];
 	}
 
 	/**
