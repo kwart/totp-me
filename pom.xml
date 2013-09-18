@@ -18,7 +18,7 @@
 	</organization>
 
 	<properties>
-		<version.suffix>-SNAPSHOT</version.suffix>
+		<version.suffix>.Final</version.suffix>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<microemulator.version>2.0.3</microemulator.version>
