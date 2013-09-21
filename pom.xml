@@ -7,7 +7,7 @@
 
 	<groupId>org.jboss.totp</groupId>
 	<artifactId>totp-me</artifactId>
-	<version>1.7</version>
+	<version>1.8</version>
 	<packaging>jar</packaging>
 
 	<name>TOTP ME</name>
@@ -18,7 +18,7 @@
 	</organization>
 
 	<properties>
-		<version.suffix>.Final</version.suffix>
+		<version.suffix>-SNAPSHOT</version.suffix>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<microemulator.version>2.0.3</microemulator.version>
@@ -124,6 +124,18 @@
 						</execution>
 					</executions>
 				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-site-plugin</artifactId>
+					<version>3.3</version>
+					<dependencies>
+						<dependency><!-- add support for ssh/scp -->
+							<groupId>org.apache.maven.wagon</groupId>
+							<artifactId>wagon-ssh</artifactId>
+							<version>2.5</version>
+						</dependency>
+					</dependencies>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 
@@ -146,7 +158,6 @@
 				<executions>
 					<execution>
 						<id>copy-resources</id>
-						<!-- here the phase you need -->
 						<phase>validate</phase>
 						<goals>
 							<goal>copy-resources</goal>
@@ -273,6 +284,13 @@
 			</build>
 		</profile>
 	</profiles>
+
+	<distributionManagement>
+		<site>
+			<id>totpme.sf.net</id>
+			<url>sftp://web.sourceforge.net/home/project-web/totpme/htdocs</url>
+		</site>
+	</distributionManagement>
 
 	<repositories>
 		<repository>
