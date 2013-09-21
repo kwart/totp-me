@@ -13,8 +13,8 @@
 			<item name="Download" href="http://sourceforge.net/projects/totpme/files/" target="_blank" />
 			<item name="Release notes" href="ReleaseNotes-README.html" />
 			<item name="totp-me as Google Authenticator" href="totp-me_as_GoogleAuthenticator.html" />
-			<item name="Bugs and issues" href="https://github.com/kwart/totp-me/issues" target="_blank" />
-			<item name="Source code (github)" href="https://github.com/kwart/totp-me" target="_blank" />
+			<item name="Bugs and issues" href="http://github.com/kwart/totp-me/issues" target="_blank" />
+			<item name="Source code (github)" href="http://github.com/kwart/totp-me" target="_blank" />
 		</menu>
 	</body>
 </project>

@@ -1,3 +1,6 @@
+<head>
+    <title>Tutorial: totp-me as Google Authenticator - 2 step verification</title>
+</head>
 # Tutorial: totp-me as Google Authenticator - 2 step verification
 
 *Have you ever wondered, how to enable Google 2 phase authentication on your older, not so smart, but Java enabled phone?*

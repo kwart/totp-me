@@ -1,3 +1,6 @@
+<head>
+    <title>Release Notes</title>
+</head>
 # Release Notes
 
 TOTP authenticator for Java ME enabled devices. It's an implementation of the RFC 6238 (TOTP: Time-Based One-Time Password Algorithm).

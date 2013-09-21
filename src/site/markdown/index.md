@@ -1,3 +1,6 @@
+<head>
+    <title>TOTP for Java ME - Google authenticator</title>
+</head>
 # ![totp-me](images/lock.png) totp-me - TOTP for Java ME
 
 Java ME TOTP ([RFC 6238](http://tools.ietf.org/html/rfc6238)) authenticator. It can be used as a token generator for
