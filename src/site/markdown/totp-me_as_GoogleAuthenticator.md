@@ -42,10 +42,10 @@ This tutorial drives you step-by-step by the process, using **totp-me** Java ME 
 confirm the options by using `OK` command  
 ![Screenshot](images/google-authenticator/130.png)
 
-1. You will see newly generated key  
+1. **totp-me** generates new `Token` for you (every 30 seconds a new one)  
 ![Screenshot](images/google-authenticator/140.png)
 
-1. Fill the **totp-me** generated key in Google's `Code` field and click `Verify and Save`   
+1. Fill the **totp-me** generated `Token` in Google's `Code` field and click `Verify and Save`   
 ![Screenshot](images/google-authenticator/150.png)
 
 1. If the steps were finished succesfully, then you should see this information  
