@@ -5,6 +5,11 @@
 
 TOTP authenticator for Java ME enabled devices. It's an implementation of the RFC 6238 (TOTP: Time-Based One-Time Password Algorithm).
 
+## 1.8
+
+* Issue#21 Added a confirmation screen for profile removing
+* Issue#22 Profiles sorted alphabetically in the list
+
 ## 1.7
 
 * Issue#20 allow shorter or longer keys to be used 

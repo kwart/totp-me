@@ -118,11 +118,14 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	// profiles screen
 	private Command cmdAddProfile = new Command("Add", Command.SCREEN, 1);
 	private Command cmdRemoveProfile = new Command("Remove", Command.SCREEN, 2);
+	// confirmation screen
+	private Command cmdCancel = new Command("Cancel", Command.CANCEL, 1);
 
 	private final StringItem siKeyHex = new StringItem("HEX", null);
 	private final StringItem siKeyBase32 = new StringItem("Base32", null);
 	private final StringItem siToken = new StringItem("Token", null);
 	private final StringItem siProfile = new StringItem(null, null);
+	private final StringItem siConfirm = new StringItem(null, null);
 	private final Gauge gauValidity = new Gauge(null, false, DEFAULT_TIMESTEP - 1, DEFAULT_TIMESTEP);
 	private final TextField tfSecret = new TextField("Secret key (Base32)", null, 105, TextField.ANY);
 	private final TextField tfProfile = new TextField("Profile name", null, 105, TextField.ANY);
@@ -139,6 +142,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final Form fMain = new Form("TOTP ME ${project.version}");
 	private final Form fOptions = new Form("TOTP configuration");
 	private final Form fGenerator = new Form("Key generator");
+	private final Form fConfirm = new Form("Confirm action");
 	private final List listProfiles = new List("Profiles", Choice.IMPLICIT);
 
 	private final Timer timer = new Timer();
@@ -194,6 +198,12 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		listProfiles.addCommand(cmdRemoveProfile);
 		listProfiles.setCommandListener(this);
 
+		// Confirm dialog
+		fConfirm.append(siConfirm);
+		fConfirm.addCommand(cmdOK);
+		fConfirm.addCommand(cmdCancel);
+		fConfirm.setCommandListener(this);
+
 		// set alert
 		alertWarn.setTimeout(Alert.FOREVER);
 
@@ -212,6 +222,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	public void startApp() {
 		try {
 			loadProfiles();
+			reorderProfiles();
+			if (listProfiles.getSelectedIndex() < 0)
+				listProfiles.setSelectedIndex(0, true);
 			if (listProfiles.size() > 1) {
 				Display.getDisplay(this).setCurrent(listProfiles);
 			} else {
@@ -224,7 +237,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		}
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see javax.microedition.midlet.MIDlet#pauseApp()
 	 */
 	public void pauseApp() {
@@ -252,6 +267,13 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			debug("Options - Command action: " + aCmd.getLabel());
 		}
 		final Display display = Display.getDisplay(this);
+		if (aDisp == fConfirm) {
+			if (aCmd == cmdOK) {
+				removeProfile(listProfiles.getSelectedIndex());
+			}
+			display.setCurrent(listProfiles);
+			return;
+		}
 		if (aCmd == cmdOK) {
 			final String warning = validateInput();
 			if (warning.length() == 0) {
@@ -276,12 +298,13 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				display.setCurrent(fMain);
 				if (aDisp != null)
 					save();
+				reorderProfiles();
 			} else {
 				displayAlert("Invalid input:\n" + warning, fOptions);
 			}
 		} else if (aCmd == cmdGenerator) {
 			final byte[] key = base32Decode(tfSecret.getString());
-			//set current key
+			// set current key
 			siKeyHex.setText(key == null ? "" : toHexString(key, 0, key.length));
 			siKeyBase32.setText(base32Encode(key));
 			display.setCurrent(fGenerator);
@@ -296,14 +319,19 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 					+ zeroLeftPad(cal.get(Calendar.SECOND), 2);
 			if (DEBUG)
 				debug("Creating profile" + profileName);
-			listProfiles.append(profileName, null);
-			listProfiles.setSelectedIndex(listProfiles.size() - 1, true);
+			int newPos = 0;
+			while (newPos < listProfiles.size() && profileName.compareTo(listProfiles.getString(newPos)) > 0) {
+				newPos++;
+			}
+			listProfiles.insert(newPos, profileName, null);
+			listProfiles.setSelectedIndex(newPos, true);
 			int[] newRecIds = new int[recordIds.length + 1];
-			System.arraycopy(recordIds, 0, newRecIds, 0, recordIds.length);
+			System.arraycopy(recordIds, 0, newRecIds, 0, newPos);
+			System.arraycopy(recordIds, newPos, newRecIds, newPos + 1, recordIds.length - newPos);
 			recordIds = newRecIds;
 			final byte[] profileConfig = getProfileConfig(profileName, EMPTY_BYTE_ARRAY, DEFAULT_TIMESTEP,
 					DEFAULT_HMAC_ALG_IDX, DEFAULT_DIGITS, DEFAULT_DELTA);
-			recordIds[recordIds.length - 1] = addProfileToRecordStore(profileConfig);
+			recordIds[newPos] = addProfileToRecordStore(profileConfig);
 		} else if (aDisp == listProfiles && aCmd == List.SELECT_COMMAND) {
 			if (listProfiles.getSelectedIndex() >= 0)
 				loadSelectedProfile();
@@ -316,7 +344,11 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				displayAlert("You can't remove the last profile.", listProfiles);
 				break;
 			default:
-				removeProfile(listProfiles.getSelectedIndex());
+				if (listProfiles.getSelectedIndex() >= 0) {
+					siConfirm.setText("Do you really want to delete profile "
+							+ listProfiles.getString(listProfiles.getSelectedIndex()) + "?");
+					display.setCurrent(fConfirm);
+				}
 				break;
 			}
 		} else if (aCmd == cmdNewKey) {
@@ -363,7 +395,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			msg[7 - i] = (byte) (counter >>> (i * 8));
 		}
 
-		//compute the HMAC
+		// compute the HMAC
 		final byte[] hash = new byte[hmac.getMacSize()];
 		hmac.update(msg, 0, msg.length);
 		hmac.doFinal(hash, 0);
@@ -733,34 +765,24 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 					try {
 						RecordStore.deleteRecordStore(STORE_KEY_OLD);
 					} catch (RecordStoreException e) {
-						//nothing to do here
+						// nothing to do here
 					}
 					try {
 						RecordStore.deleteRecordStore(STORE_CONFIG_OLD);
 					} catch (RecordStoreException e) {
-						//nothing to do here
+						// nothing to do here
 					}
 				}
 
 				debug("Adding new configuration record.");
 				tmpRS.addRecord(newRecord, 0, newRecord.length);
 			}
-			//load profile record IDs
+			// load profile record IDs
 			recordIds = new int[tmpRS.getNumRecords()];
 			RecordEnumeration recEnum = tmpRS.enumerateRecords(null, null, false);
 			int i = 0;
 			while (recEnum.hasNextElement()) {
 				recordIds[i++] = recEnum.nextRecordId();
-			}
-			//sort record IDs
-			for (i = 0; i < recordIds.length; i++) {
-				for (int j = (recordIds.length - 1); j >= (i + 1); j--) {
-					if (recordIds[j] < recordIds[j - 1]) {
-						final int tmp = recordIds[j];
-						recordIds[j] = recordIds[j - 1];
-						recordIds[j - 1] = tmp;
-					}
-				}
 			}
 			// load profile names
 			for (i = 0; i < recordIds.length; i++) {
@@ -770,8 +792,6 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 				debug("Parsed profile name: " + profileName);
 				listProfiles.append(profileName, null);
 			}
-			if (listProfiles.getSelectedIndex() < 0)
-				listProfiles.setSelectedIndex(0, true);
 		} catch (Exception e) {
 			debugErr("loadProfiles - " + e.getClass().getName() + " - " + e.getMessage());
 		} finally {
@@ -815,7 +835,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		final int profileIdx = listProfiles.getSelectedIndex();
 		final int recordId = recordIds[profileIdx];
 
-		//store configuration of current profile
+		// store configuration of current profile
 		final byte[] configBytes = getProfileConfig(tfProfile.getString(), base32Decode(tfSecret.getString()),
 				Integer.parseInt(tfTimeStep.getString()), chgHmacAlgorithm.getSelectedIndex(),
 				Integer.parseInt(tfDigits.getString()), Integer.parseInt(tfDelta.getString()));
@@ -1048,6 +1068,40 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			sb.append("0");
 		}
 		return sb.append(strValue).toString();
+	}
+
+	/**
+	 * Sorts profiles by the name alphabetically. It updates both listProfiles
+	 * and recordIds member variables.
+	 */
+	private void reorderProfiles() {
+		final int n = listProfiles.size();
+		if (n < 2)
+			return;
+		debug("Sorting profiles alphabetically.");
+		final int selectedIndex = listProfiles.getSelectedIndex();
+		final int selectedRecordId = selectedIndex >= 0 ? recordIds[selectedIndex] : -1;
+		for (int i = n - 1; i > 0; i--) {
+			for (int j = 0; j < i; j++) {
+				final String thisStr = listProfiles.getString(j);
+				final String nextStr = listProfiles.getString(j + 1);
+				if (thisStr.compareTo(nextStr) > 1) {
+					listProfiles.set(j, nextStr, null);
+					listProfiles.set(j + 1, thisStr, null);
+					final int thisId = recordIds[j];
+					recordIds[j] = recordIds[j + 1];
+					recordIds[j + 1] = thisId;
+				}
+			}
+		}
+		if (selectedRecordId >= 0) {
+			for (int i = 0; i < recordIds.length; i++) {
+				if (selectedRecordId == recordIds[i]) {
+					listProfiles.setSelectedIndex(i, true);
+					break;
+				}
+			}
+		}
 	}
 
 	// Embedded classes ------------------------------------------------------
