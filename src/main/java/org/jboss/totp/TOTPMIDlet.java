@@ -929,7 +929,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		if (bytes == null) {
 			return "";
 		}
-		int i = 0, index = 0, digit = 0;
+		int i = 0, index = 0, digit = 0, outchars = 0;
 		int currByte, nextByte;
 		StringBuffer base32 = new StringBuffer((bytes.length + 7) * 8 / 5);
 
@@ -956,6 +956,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 					i++;
 			}
 			base32.append(BASE32_CHARS.charAt(digit));
+			outchars++;
+			if (outchars % 4 == 0)
+				base32.append(" ");
 		}
 
 		return base32.toString();
@@ -1029,10 +1032,12 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		if (data == null || data.length == 0)
 			return "";
 
-		final StringBuffer s = new StringBuffer(length * 2);
+		final StringBuffer s = new StringBuffer(length * 3);
 		for (int i = offset; i < offset + length; i++) {
 			s.append(HEX_TABLE[(data[i] & 0xf0) >>> 4]);
 			s.append(HEX_TABLE[(data[i] & 0x0f)]);
+			if ((i - offset) % 2 == 1)
+				s.append(" ");
 		}
 		return s.toString();
 	}
