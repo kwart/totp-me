@@ -122,12 +122,12 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private Command cmdCancel = new Command("Cancel", Command.CANCEL, 1);
 
 	private final StringItem siKeyHex = new StringItem("HEX", null);
-	private final StringItem siKeyBase32 = new StringItem("Base32", null);
+	private final StringItem siKeyBase32 = new StringItem("Base32 (no zeros)", null);
 	private final StringItem siToken = new StringItem("Token", null);
 	private final StringItem siProfile = new StringItem(null, null);
 	private final StringItem siConfirm = new StringItem(null, null);
 	private final Gauge gauValidity = new Gauge(null, false, DEFAULT_TIMESTEP - 1, DEFAULT_TIMESTEP);
-	private final TextField tfSecret = new TextField("Secret key (Base32)", null, 105, TextField.ANY);
+	private final TextField tfSecret = new TextField("Secret key (Base32, no zeros)", null, 105, TextField.ANY);
 	private final TextField tfProfile = new TextField("Profile name", null, 105, TextField.ANY);
 	private final TextField tfTimeStep = new TextField("Time step (sec)", String.valueOf(DEFAULT_TIMESTEP), 3,
 			TextField.NUMERIC);
