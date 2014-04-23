@@ -7,7 +7,7 @@
 
 	<groupId>org.jboss.totp</groupId>
 	<artifactId>totp-me</artifactId>
-	<version>1.8</version>
+	<version>1.9</version>
 	<packaging>jar</packaging>
 
 	<name>TOTP ME</name>
@@ -18,7 +18,7 @@
 	</organization>
 
 	<properties>
-		<version.suffix>.Final</version.suffix>
+		<version.suffix>-SNAPSHOT</version.suffix>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<microemulator.version>2.0.3</microemulator.version>
