@@ -45,6 +45,9 @@ import javax.microedition.rms.RecordStore;
 import javax.microedition.rms.RecordStoreException;
 import javax.microedition.rms.RecordStoreNotFoundException;
 
+import jp.comutt.otp.OtpauthUri;
+import jp.comutt.otp.OtpauthUri.InvalidUriException;
+
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.SHA1Digest;
 import org.bouncycastle.crypto.digests.SHA256Digest;
@@ -54,7 +57,7 @@ import org.bouncycastle.crypto.params.KeyParameter;
 
 /**
  * TOTP generator for Java ME.
- * 
+ *
  * @author Josef Cacek
  */
 public class TOTPMIDlet extends MIDlet implements CommandListener {
@@ -75,6 +78,11 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	private static final char[] HEX_TABLE = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
 			'e', 'f' };
+
+	private static final String ADD_METHOD_OTPAUTH_URI = "otpauth:// URI\n(Read QR code and paste it)";
+	private static final String ADD_METHOD_MANUAL = "Manual";
+
+	private static final String[] ADD_METHODS = { ADD_METHOD_OTPAUTH_URI, ADD_METHOD_MANUAL };
 
 	private static final String SHA1 = "SHA-1";
 	private static final String SHA256 = "SHA-256";
@@ -104,22 +112,26 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	// GUI components
 	// main screen
-	private Command cmdExit = new Command("Exit", Command.EXIT, 1);
-	private Command cmdProfiles = new Command("Profiles", Command.SCREEN, 2);
-	private Command cmdOptions = new Command("Options", Command.SCREEN, 3);
+	private final Command cmdExit = new Command("Exit", Command.EXIT, 1);
+	private final Command cmdProfiles = new Command("Profiles", Command.SCREEN, 2);
+	private final Command cmdOptions = new Command("Options", Command.SCREEN, 3);
 	// main+options screen
-	private Command cmdGenerator = new Command("Key generator", Command.SCREEN, 4);
+	private final Command cmdGenerator = new Command("Key generator", Command.SCREEN, 4);
 	// options screen
-	private Command cmdOK = new Command("OK", Command.OK, 1);
-	private Command cmdReset = new Command("Default values", Command.SCREEN, 3);
+	private final Command cmdOK = new Command("OK", Command.OK, 1);
+	private final Command cmdReset = new Command("Default values", Command.SCREEN, 3);
 	// keyGenerator screen
-	private Command cmdNewKey = new Command("New key", Command.SCREEN, 1);
-	private Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
+	private final Command cmdNewKey = new Command("New key", Command.SCREEN, 1);
+	private final Command cmdGeneratorOK = new Command("OK", Command.OK, 1);
 	// profiles screen
-	private Command cmdAddProfile = new Command("Add", Command.SCREEN, 1);
-	private Command cmdRemoveProfile = new Command("Remove", Command.SCREEN, 2);
+	private final Command cmdAddProfile = new Command("Add", Command.SCREEN, 1);
+	private final Command cmdRemoveProfile = new Command("Remove", Command.SCREEN, 2);
 	// confirmation screen
-	private Command cmdCancel = new Command("Cancel", Command.CANCEL, 1);
+	private final Command cmdCancel = new Command("Cancel", Command.CANCEL, 1);
+
+	private final ChoiceGroup chgAddingMethod = new ChoiceGroup("Choose adding method", ChoiceGroup.EXCLUSIVE, new String[]{}, null);
+
+	private final TextField tfOtpauthUri = new TextField("otpauth:// URI\n(Paste URI that read from QR code)", null, 256, TextField.ANY);
 
 	private final StringItem siKeyHex = new StringItem("HEX", null);
 	private final StringItem siKeyBase32 = new StringItem("Base32 (no zeros)", null);
@@ -140,6 +152,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private final Alert alertWarn = new Alert("Warning", "Something went wrong!", null, AlertType.ALARM);
 
 	private final Form fMain = new Form("TOTP ME ${project.version}");
+	private final Form fChoiceAddingMethod = new Form("Adding method");
 	private final Form fOptions = new Form("TOTP configuration");
 	private final Form fGenerator = new Form("Key generator");
 	private final Form fConfirm = new Form("Confirm action");
@@ -178,20 +191,19 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		fGenerator.addCommand(cmdNewKey);
 		fGenerator.setCommandListener(this);
 
-		// Configuration display
-		fOptions.append(tfSecret);
-		fOptions.append(tfProfile);
-		fOptions.append(tfTimeStep);
-		fOptions.append(tfDigits);
-		for (int i = 0; i < HMAC_ALGORITHMS.length; i++) {
-			chgHmacAlgorithm.append(HMAC_ALGORITHMS[i], null);
+		// Choice display
+		for (int i = 0; i < ADD_METHODS.length; i++) {
+		    chgAddingMethod.append(ADD_METHODS[i], null);
 		}
-		fOptions.append(chgHmacAlgorithm);
-		fOptions.append(tfDelta);
-		fOptions.addCommand(cmdOK);
-		fOptions.addCommand(cmdGenerator);
-		fOptions.addCommand(cmdReset);
-		fOptions.setCommandListener(this);
+
+		fChoiceAddingMethod.append(chgAddingMethod);
+		fChoiceAddingMethod.addCommand(cmdOK);
+		fChoiceAddingMethod.setCommandListener(this);
+
+		// Configuration display
+        for (int i = 0; i < HMAC_ALGORITHMS.length; i++) {
+            chgHmacAlgorithm.append(HMAC_ALGORITHMS[i], null);
+        }
 
 		// Profiles
 		listProfiles.addCommand(cmdAddProfile);
@@ -216,7 +228,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Loads configuration and initializes token-refreshing timer.
-	 * 
+	 *
 	 * @see javax.microedition.midlet.MIDlet#startApp()
 	 */
 	public void startApp() {
@@ -239,7 +251,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see javax.microedition.midlet.MIDlet#pauseApp()
 	 */
 	public void pauseApp() {
@@ -247,7 +259,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Saves configuration to the record store and exits the refreshing timer.
-	 * 
+	 *
 	 * @see javax.microedition.midlet.MIDlet#destroyApp(boolean)
 	 */
 	public void destroyApp(boolean unconditional) {
@@ -258,7 +270,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Handles command actions from all forms.
-	 * 
+	 *
 	 * @see javax.microedition.lcdui.CommandListener#commandAction(javax.microedition.lcdui.Command,
 	 *      javax.microedition.lcdui.Displayable)
 	 */
@@ -266,6 +278,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		if (DEBUG && aCmd != null) {
 			debug("Options - Command action: " + aCmd.getLabel());
 		}
+
 		final Display display = Display.getDisplay(this);
 		if (aDisp == fConfirm) {
 			if (aCmd == cmdOK) {
@@ -273,35 +286,53 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			}
 			display.setCurrent(listProfiles);
 			return;
-		}
-		if (aCmd == cmdOK) {
-			final String warning = validateInput();
-			if (warning.length() == 0) {
-				siProfile.setText(tfProfile.getString());
-				final int algorithmIdx = chgHmacAlgorithm.getSelectedIndex();
-				final byte[] secretKey = base32Decode(tfSecret.getString());
-				HMac newHmac = null;
-				if (secretKey != null) {
-					Digest digest = null;
-					if (SHA1.equals(HMAC_ALGORITHMS[algorithmIdx])) {
-						digest = new SHA1Digest();
-					} else if (SHA256.equals(HMAC_ALGORITHMS[algorithmIdx])) {
-						digest = new SHA256Digest();
-					} else if (SHA512.equals(HMAC_ALGORITHMS[algorithmIdx])) {
-						digest = new SHA512Digest();
-					}
-					newHmac = new HMac(digest);
-					newHmac.init(new KeyParameter(secretKey));
-				}
-				setHMac(newHmac);
-				refreshTokenTask.run();
-				display.setCurrent(fMain);
-				if (aDisp != null)
-					save();
-				reorderProfiles();
-			} else {
-				displayAlert("Invalid input:\n" + warning, fOptions);
-			}
+		} else if (aDisp == fChoiceAddingMethod) {
+		    if (aCmd == cmdOK) {
+		        for (int i = fOptions.size() - 1; i >=0; i--) {
+		            fOptions.delete(i);
+		        }
+
+		        String selectedMethod = ADD_METHODS[chgAddingMethod.getSelectedIndex()];
+
+		        if (selectedMethod.equals(ADD_METHOD_OTPAUTH_URI)) {
+		            fOptions.append(tfOtpauthUri);
+		        }
+		        else if (selectedMethod.equals(ADD_METHOD_MANUAL)) {
+		            fOptions.append(tfSecret);
+		            fOptions.append(tfProfile);
+		            fOptions.append(tfTimeStep);
+		            fOptions.append(tfDigits);
+
+		            fOptions.append(chgHmacAlgorithm);
+		            fOptions.append(tfDelta);
+
+		            fOptions.addCommand(cmdGenerator);
+		            fOptions.addCommand(cmdReset);
+		        }
+
+		        fOptions.addCommand(cmdOK);
+		        fOptions.setCommandListener(this);
+
+		        display.setCurrent(fOptions);
+		    }
+
+		    return;
+		} else if (aDisp == fOptions && aCmd == cmdOK) {
+		    String selectedMethod = ADD_METHODS[chgAddingMethod.getSelectedIndex()];
+
+	        if (selectedMethod.equals(ADD_METHOD_OTPAUTH_URI)) {
+	            if (!displayTokenFromURI(display)) {
+	                return;
+	            }
+	            tfOtpauthUri.setString("");
+	        } else if (selectedMethod.equals(ADD_METHOD_MANUAL)) {
+	            if (!displayToken(display)) {
+	                return;
+	            }
+	        }
+
+	        save();
+            reorderProfiles();
 		} else if (aCmd == cmdGenerator) {
 			final byte[] key = base32Decode(tfSecret.getString());
 			// set current key
@@ -376,12 +407,100 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		cachedCounter = INVALID_COUNTER;
 	}
 
+   private boolean displayToken(Display display) {
+        final String warning = validateInput();
+        if (warning.length() == 0) {
+            siProfile.setText(tfProfile.getString());
+            final int algorithmIdx = chgHmacAlgorithm.getSelectedIndex();
+            final byte[] secretKey = base32Decode(tfSecret.getString());
+            HMac newHmac = null;
+            if (secretKey != null) {
+                Digest digest = null;
+                if (SHA1.equals(HMAC_ALGORITHMS[algorithmIdx])) {
+                    digest = new SHA1Digest();
+                } else if (SHA256.equals(HMAC_ALGORITHMS[algorithmIdx])) {
+                    digest = new SHA256Digest();
+                } else if (SHA512.equals(HMAC_ALGORITHMS[algorithmIdx])) {
+                    digest = new SHA512Digest();
+                }
+                newHmac = new HMac(digest);
+                newHmac.init(new KeyParameter(secretKey));
+            }
+            setHMac(newHmac);
+            refreshTokenTask.run();
+            display.setCurrent(fMain);
+
+            return true;
+        } else {
+            displayAlert("Invalid input:\n" + warning, fOptions);
+
+            return false;
+        }
+    }
+
+    private boolean displayTokenFromURI(Display display) {
+        OtpauthUri uri = null;
+        try {
+            uri = OtpauthUri.parse(tfOtpauthUri.getString());
+        } catch (InvalidUriException e) {
+            displayAlert("Invalid URI:\n" + e.getMessage(), fOptions);
+
+            return false;
+        }
+
+        String profileName = uri.getIssuer() != null ? uri.getIssuer() + ":"
+                + uri.getLabel() : uri.getLabel();
+        tfProfile.setString(profileName);
+        siProfile.setText(tfProfile.getString());
+        tfSecret.setString(uri.getSecret());
+
+        Digest digest = null;
+        HMac newHmac = null;
+        if (uri.getAlgorithm() != null) {
+            if (uri.getAlgorithm().toLowerCase().equals("sha1")) {
+                chgHmacAlgorithm.setSelectedIndex(0, true);
+                digest = new SHA1Digest();
+            } else if (uri.getAlgorithm().toLowerCase().equals("sha256")) {
+                chgHmacAlgorithm.setSelectedIndex(1, true);
+                digest = new SHA256Digest();
+            } else if (uri.getAlgorithm().toLowerCase().equals("sha512")) {
+                chgHmacAlgorithm.setSelectedIndex(2, true);
+                digest = new SHA512Digest();
+            }
+        } else {
+            digest = new SHA1Digest();
+        }
+
+        if (uri.getPeriod() != null) {
+            tfTimeStep.setString(String.valueOf(uri.getPeriod()));
+        }
+
+        if (uri.getDigits() != null) {
+            tfDigits.setString(String.valueOf(uri.getDigits()));
+        }
+
+        final String warning = validateInput();
+        if (warning.length() > 0) {
+            displayAlert("Invalid input:\n" + warning, fOptions);
+            return false;
+        }
+
+        newHmac = new HMac(digest);
+        newHmac.init(new KeyParameter(base32Decode(uri.getSecret())));
+        setHMac(newHmac);
+        refreshTokenTask.run();
+        display.setCurrent(fMain);
+
+        return true;
+    }
+
+
 	// Protected methods -----------------------------------------------------
 
 	/**
 	 * Generates the current token. If the token can't be generated it returns
 	 * an empty String.
-	 * 
+	 *
 	 * @return current token or an empty String
 	 */
 	protected static String genToken(final long counter, final HMac hmac, final int digits) {
@@ -417,7 +536,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Returns counter value for given time and timeStep.
-	 * 
+	 *
 	 * @param timeInSec
 	 * @param timeStep
 	 * @return counter (HOTP)
@@ -430,7 +549,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Returns HMac.
-	 * 
+	 *
 	 * @return
 	 */
 	private synchronized HMac getHMac() {
@@ -439,7 +558,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Sets HMac.
-	 * 
+	 *
 	 * @param hmac
 	 */
 	private synchronized void setHMac(HMac hmac) {
@@ -450,77 +569,77 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 * Validates (and makes basic corrections in) the options form. It returns
 	 * warning message(s) if the validation error occurs. An empty string is
 	 * returned if the validation is successful.
-	 * 
+	 *
 	 * @return warning message
 	 */
 	private String validateInput() {
-		final StringBuffer warnings = new StringBuffer();
+	    final StringBuffer warnings = new StringBuffer();
 
-		int algIdx = chgHmacAlgorithm.getSelectedIndex();
-		if (algIdx < 0) {
-			algIdx = 0;
-			chgHmacAlgorithm.setSelectedIndex(algIdx, true);
-		}
+	    int algIdx = chgHmacAlgorithm.getSelectedIndex();
+        if (algIdx < 0) {
+            algIdx = 0;
+            chgHmacAlgorithm.setSelectedIndex(algIdx, true);
+        }
 
-		String str = tfSecret.getString();
-		if (str == null) {
-			str = "";
-		} else {
-			final StringBuffer sb = new StringBuffer();
-			str = str.toUpperCase().replace('0', 'O').replace('1', 'L');
-			for (int i = 0; i < str.length(); i++) {
-				char ch = str.charAt(i);
-				if (BASE32_CHARS.indexOf(ch) >= 0) {
-					sb.append(ch);
-				}
-			}
-			str = sb.toString();
-		}
-		tfSecret.setString(str);
+        String str = tfSecret.getString();
+        if (str == null) {
+            str = "";
+        } else {
+            final StringBuffer sb = new StringBuffer();
+            str = str.toUpperCase().replace('0', 'O').replace('1', 'L');
+            for (int i = 0; i < str.length(); i++) {
+                char ch = str.charAt(i);
+                if (BASE32_CHARS.indexOf(ch) >= 0) {
+                    sb.append(ch);
+                }
+            }
+            str = sb.toString();
+        }
+        tfSecret.setString(str);
 
-		int step = 0;
-		try {
-			step = Integer.parseInt(tfTimeStep.getString());
-		} catch (NumberFormatException e) {
-			tfTimeStep.setString(Integer.toString(DEFAULT_TIMESTEP));
-			step = DEFAULT_TIMESTEP;
-		}
-		if (step <= 0) {
-			if (warnings.length() > 0)
-				warnings.append("\n");
-			warnings.append("Time step must be positive number.");
-		}
-		gauValidity.setMaxValue((str.length() > 0 && step > 1) ? step - 1 : INDEFINITE);
+        int step = 0;
+        try {
+            step = Integer.parseInt(tfTimeStep.getString());
+        } catch (NumberFormatException e) {
+            tfTimeStep.setString(Integer.toString(DEFAULT_TIMESTEP));
+            step = DEFAULT_TIMESTEP;
+        }
+        if (step <= 0) {
+            if (warnings.length() > 0)
+                warnings.append("\n");
+            warnings.append("Time step must be positive number.");
+        }
+        gauValidity.setMaxValue((str.length() > 0 && step > 1) ? step - 1 : INDEFINITE);
 
-		int digits = 0;
-		try {
-			digits = Integer.parseInt(tfDigits.getString());
-		} catch (NumberFormatException e) {
-			tfDigits.setString(Integer.toString(DEFAULT_DIGITS));
-		}
-		if (digits <= 0) {
-			if (warnings.length() > 0)
-				warnings.append("\n");
-			warnings.append("Number of digits must be positive number.");
-		}
+        int digits = 0;
+        try {
+            digits = Integer.parseInt(tfDigits.getString());
+        } catch (NumberFormatException e) {
+            tfDigits.setString(Integer.toString(DEFAULT_DIGITS));
+        }
+        if (digits <= 0) {
+            if (warnings.length() > 0)
+                warnings.append("\n");
+            warnings.append("Number of digits must be positive number.");
+        }
 
-		int delta = 0;
-		try {
-			delta = Integer.parseInt(tfDelta.getString());
-		} catch (NumberFormatException e) {
-			tfDelta.setString(Integer.toString(DEFAULT_DELTA));
-		}
-		if (Math.abs(delta) > DAY_IN_SEC) {
-			if (warnings.length() > 0)
-				warnings.append("\n");
-			warnings.append("Time correction is limited by one day (").append(DAY_IN_SEC).append(" sec).");
-		}
-		return warnings.toString();
+        int delta = 0;
+        try {
+            delta = Integer.parseInt(tfDelta.getString());
+        } catch (NumberFormatException e) {
+            tfDelta.setString(Integer.toString(DEFAULT_DELTA));
+        }
+        if (Math.abs(delta) > DAY_IN_SEC) {
+            if (warnings.length() > 0)
+                warnings.append("\n");
+            warnings.append("Time correction is limited by one day (").append(DAY_IN_SEC).append(" sec).");
+        }
+        return warnings.toString();
 	}
 
 	/**
 	 * Shows {@link Alert} warning screen with given message.
-	 * 
+	 *
 	 * @param msg
 	 * @param nextDisplayable
 	 *            Next screen, which is displayed after warning confirmation by
@@ -534,7 +653,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	/**
 	 * Adds new profile to {@link RecordStore} and returns ID of the new record.
 	 * It returns -1 if adding fails.
-	 * 
+	 *
 	 * @param configBytes
 	 *            byte array profile representation
 	 * @return new record ID or -1 (if adding fails)
@@ -560,7 +679,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Removes record with given ID from a {@link RecordStore} with given name.
-	 * 
+	 *
 	 * @param storeName
 	 * @param recordId
 	 */
@@ -592,7 +711,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	/**
 	 * Sets record with given ID and value to a {@link RecordStore} with given
 	 * name.
-	 * 
+	 *
 	 * @param storeName
 	 * @param recordId
 	 * @param value
@@ -623,7 +742,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	/**
 	 * Loads value of a record with given ID from a {@link RecordStore} with
 	 * given name.
-	 * 
+	 *
 	 * @param storeName
 	 * @param recordId
 	 * @return
@@ -657,7 +776,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	/**
 	 * Removes profile with given index from GUI list and the
 	 * {@link RecordStore}.
-	 * 
+	 *
 	 * @param profileIdx
 	 */
 	private void removeProfile(final int profileIdx) {
@@ -715,11 +834,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		}
 		gauValidity.setMaxValue((base32EncodedSecret.length() > 0 && timeStep > 1) ? timeStep - 1 : INDEFINITE);
 		if (base32EncodedSecret.length() == 0) {
-			final Display display = Display.getDisplay(this);
-			display.setCurrent(fOptions);
+			Display.getDisplay(this).setCurrent(fChoiceAddingMethod);
 		} else {
-			// use validation - to check loaded data
-			commandAction(cmdOK, null);
+            displayToken(Display.getDisplay(this));
 		}
 	}
 
@@ -807,7 +924,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Returns profile name from given profile record value.
-	 * 
+	 *
 	 * @param profileBytes
 	 * @return profile name
 	 */
@@ -847,7 +964,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Creates profile record from provided values.
-	 * 
+	 *
 	 * @param profileName
 	 * @param key
 	 * @param timeStep
@@ -884,7 +1001,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Debug function
-	 * 
+	 *
 	 * @param aWhat
 	 */
 	private static void debug(final String aWhat) {
@@ -895,7 +1012,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Debug function for errors
-	 * 
+	 *
 	 * @param aWhat
 	 */
 	private static void debugErr(final String aWhat) {
@@ -906,7 +1023,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Prints error.
-	 * 
+	 *
 	 * @param anErr
 	 */
 	private static void error(final Object anErr) {
@@ -919,11 +1036,11 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Encodes byte array to Base32 String. Returns not-null String.
-	 * 
+	 *
 	 * @param bytes
 	 *            Bytes to encode.
 	 * @return Encoded byte array <code>bytes</code> as a String.
-	 * 
+	 *
 	 */
 	private static String base32Encode(final byte[] bytes) {
 		if (bytes == null) {
@@ -966,7 +1083,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Decodes the given Base32 String to a raw byte array.
-	 * 
+	 *
 	 * @param base32
 	 * @return Decoded <code>base32</code> String as a raw byte array.
 	 */
@@ -1018,14 +1135,14 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Convert a byte array to a String with a hexidecimal format.
-	 * 
+	 *
 	 * @param data
 	 *            byte array
 	 * @param offset
 	 *            starting byte (zero based) to convert.
 	 * @param length
 	 *            number of bytes to convert.
-	 * 
+	 *
 	 * @return the String (with hexidecimal format) form of the byte array
 	 */
 	private static String toHexString(byte[] data, int offset, int length) {
@@ -1044,7 +1161,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 	/**
 	 * Generates a new random secret key.
-	 * 
+	 *
 	 * @return secret key suitable for selected HMac Algorithm
 	 */
 	private byte[] generateNewKey() {
@@ -1059,7 +1176,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 * Zero-left-padding for integer values. If a length of given integer
 	 * converted to string is smaller than len, then zeroes are filled on the
 	 * left side so the resulting string has lenght=len.
-	 * 
+	 *
 	 * @param value
 	 * @param len
 	 * @return
