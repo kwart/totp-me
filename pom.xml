@@ -7,7 +7,6 @@
 
 	<groupId>org.jboss.totp</groupId>
 	<artifactId>totp-me</artifactId>
-	<version>1.9</version>
 	<packaging>jar</packaging>
 
 	<name>TOTP ME</name>
@@ -299,4 +298,5 @@
 		</repository>
 	</repositories>
 
+	<version>2.0</version>
 </project>
