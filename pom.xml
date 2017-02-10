@@ -21,7 +21,7 @@
 		<version.suffix>-SNAPSHOT</version.suffix>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<microemulator.version>2.0.3</microemulator.version>
+		<microemulator.version>2.0.4</microemulator.version>
 
 		<midlet.vendor>${project.organization.name}</midlet.vendor>
 		<midlet.name>${project.name}</midlet.name>

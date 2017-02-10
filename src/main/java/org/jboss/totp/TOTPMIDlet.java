@@ -86,14 +86,12 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	private static final int DEFAULT_TIMESTEP = 30;
 	private static final byte[] DEFAULT_SECRET = null;
 	private static final int DEFAULT_DIGITS = 6;
-	private static final int DEFAULT_DELTA = 0;
+	private static final long DEFAULT_DELTA = 0L;
 	private static final int DEFAULT_HMAC_ALG_IDX = 0;
 
 	private static final String DEFAULT_PROFILE = "Default";
 
 	private static final long INVALID_COUNTER = -1L;
-
-	private static final int DAY_IN_SEC = 60 * 60 * 24;
 
 	private static final int INDEFINITE = 1;
 	private static final int IDLE = 0;
@@ -133,8 +131,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			TextField.NUMERIC);
 	private final TextField tfDigits = new TextField("Number of digits", String.valueOf(DEFAULT_DIGITS), 2,
 			TextField.NUMERIC);
-	private final TextField tfDelta = new TextField("Time correction (sec)", String.valueOf(DEFAULT_DELTA), 6,
-			TextField.NUMERIC);
+	//http://docs.oracle.com/javame/config/cldc/ref-impl/midp2.0/jsr118/javax/microedition/lcdui/TextField.htm getMaxSize
+	private final TextField tfDelta = new TextField("Time correction (sec)", String.valueOf(DEFAULT_DELTA), 20,
+			TextField.ANY);
 	private final ChoiceGroup chgHmacAlgorithm = new ChoiceGroup("HMAC algorithm", Choice.EXCLUSIVE);
 
 	private final Alert alertWarn = new Alert("Warning", "Something went wrong!", null, AlertType.ALARM);
@@ -368,7 +367,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			tfTimeStep.setString(Integer.toString(DEFAULT_TIMESTEP));
 			tfDigits.setString(Integer.toString(DEFAULT_DIGITS));
 			chgHmacAlgorithm.setSelectedIndex(DEFAULT_HMAC_ALG_IDX, true);
-			tfDelta.setString(Integer.toString(DEFAULT_DELTA));
+			tfDelta.setString(Long.toString(DEFAULT_DELTA));
 			tfProfile.setString(listProfiles.getString(listProfiles.getSelectedIndex()));
 		} else if (aCmd == cmdExit) {
 			destroyApp(false);
@@ -504,17 +503,21 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			warnings.append("Number of digits must be positive number.");
 		}
 
-		int delta = 0;
+		//Example: If device manufactur has set limited lifetime [2000..2017)
+		//In Browser console: (Date.UTC(2017,0,1)-Date.UTC(2000,0,1))/1000
+		//delta = 536544000
+		long delta = 0L;
 		try {
-			delta = Integer.parseInt(tfDelta.getString());
+			delta = Long.parseLong(tfDelta.getString());
 		} catch (NumberFormatException e) {
-			tfDelta.setString(Integer.toString(DEFAULT_DELTA));
-		}
-		if (Math.abs(delta) > DAY_IN_SEC) {
+			tfDelta.setString(Long.toString(DEFAULT_DELTA));
 			if (warnings.length() > 0)
 				warnings.append("\n");
-			warnings.append("Time correction is limited by one day (").append(DAY_IN_SEC).append(" sec).");
+			warnings.append("Incorrect delta value '");
+			warnings.append(tfDelta.getString());
+			warnings.append("' (is not a number).");
 		}
+
 		return warnings.toString();
 	}
 
@@ -693,7 +696,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			tfTimeStep.setString(String.valueOf(dis.readInt()));
 			chgHmacAlgorithm.setSelectedIndex(dis.readInt(), true);
 			tfDigits.setString(String.valueOf(dis.readByte()));
-			tfDelta.setString(String.valueOf(dis.readInt()));
+			tfDelta.setString(String.valueOf(dis.readLong()));
 		} catch (Exception e) {
 			e.printStackTrace();
 			debugErr("loading profile configuration - " + e.getClass().getName() + " - " + e.getMessage());
@@ -742,14 +745,15 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 					final byte[] configBytes = loadRecordFromStore(STORE_CONFIG_OLD, 1);
 					final ByteArrayInputStream bais = new ByteArrayInputStream(configBytes);
 					final DataInputStream dis = new DataInputStream(bais);
-					int ts = DEFAULT_TIMESTEP, idx = DEFAULT_HMAC_ALG_IDX, delta = DEFAULT_DELTA;
+					int ts = DEFAULT_TIMESTEP, idx = DEFAULT_HMAC_ALG_IDX; 
+					long delta = DEFAULT_DELTA;
 					int digits = DEFAULT_DIGITS;
 
 					try {
 						ts = dis.readInt();
 						idx = dis.readInt();
 						digits = dis.readByte();
-						delta = dis.readInt();
+						delta = dis.readLong();
 					} catch (Exception e) {
 						debugErr("loading old configuration - " + e.getClass().getName() + " - " + e.getMessage());
 					} finally {
@@ -838,7 +842,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 		// store configuration of current profile
 		final byte[] configBytes = getProfileConfig(tfProfile.getString(), base32Decode(tfSecret.getString()),
 				Integer.parseInt(tfTimeStep.getString()), chgHmacAlgorithm.getSelectedIndex(),
-				Integer.parseInt(tfDigits.getString()), Integer.parseInt(tfDelta.getString()));
+				Integer.parseInt(tfDigits.getString()), Long.parseLong(tfDelta.getString()));
 		saveRecordToStore(STORE_PROFILE_CONFIG, recordId, configBytes);
 
 		// update also profile name
@@ -857,7 +861,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 	 * @return
 	 */
 	private static byte[] getProfileConfig(String profileName, byte[] key, int timeStep, int hmacIdx, int digits,
-			int delta) {
+			long delta) {
 		if (key == null)
 			key = EMPTY_BYTE_ARRAY;
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -869,7 +873,7 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 			dos.writeInt(timeStep);
 			dos.writeInt(hmacIdx);
 			dos.writeByte(digits);
-			dos.writeInt(delta);
+			dos.writeLong(delta);
 		} catch (IOException e) {
 			debugErr("Creating configuration failed - " + e.getMessage());
 		} finally {
@@ -1126,9 +1130,9 @@ public class TOTPMIDlet extends MIDlet implements CommandListener {
 
 			int remainSec = -1;
 			if (timeStep > 0) {
-				int delta = DEFAULT_DELTA;
+				long delta = DEFAULT_DELTA;
 				try {
-					delta = Integer.parseInt(tfDelta.getString());
+					delta = Long.parseLong(tfDelta.getString());
 				} catch (NumberFormatException e) {
 					debugErr(e.getMessage());
 				}
