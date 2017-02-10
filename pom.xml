@@ -44,7 +44,7 @@
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>lcrypto-j2me</artifactId>
-			<version>1.45</version>
+			<version>1.56</version>
 		</dependency>
 
 		<dependency>
@@ -291,12 +291,5 @@
 			<url>sftp://web.sourceforge.net/home/project-web/totpme/htdocs</url>
 		</site>
 	</distributionManagement>
-
-	<repositories>
-		<repository>
-			<id>lcrypto</id>
-			<url>http://jinahya-files.googlecode.com/svn/maven/2/repo/</url>
-		</repository>
-	</repositories>
 
 </project>
