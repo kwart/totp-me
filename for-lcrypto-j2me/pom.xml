@@ -38,17 +38,6 @@
 						<configuration>
 							<sources>
 								<source>src/org/bouncycastle/math/ec/custom/sec/test</source>
-								<?ignoreme
-									<source>src/org/bouncycastle/util/test</source>
-									<source>src/org/bouncycastle/asn1/test</source>
-									<source>src/org/bouncycastle/openpgp/test</source>
-									<source>src/org/bouncycastle/crypto/prng/test</source>
-									<source>src/org/bouncycastle/crypto/ec/test</source>
-									<source>src/org/bouncycastle/crypto/test</source>
-									<source>src/org/bouncycastle/cert/test</source>
-									<source>src/org/bouncycastle/cms/test</source>
-									<source>src/java/math/test</source>
-								?>
 							</sources>
 						</configuration>
 						<!-- better solution: https://stackoverflow.com/a/35514742 --> 
