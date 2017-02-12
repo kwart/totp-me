@@ -23,9 +23,26 @@ or you can download [current sources as a zip file](https://github.com/kwart/tot
 
 ### How to build it
 
-You need to have [Maven](http://maven.apache.org/) installed
+Download `lcrypto-j2me-xxx.zip` ("xxx" - current version of lcrypto, for example "lcrypto-j2me-156.zip") 
+from the [Bouncy Castle website](https://www.bouncycastle.org/latest_releases.html) 
+and extract it to new `lcrypto-j2me` folder.
 
-	$ cd totp-me
+Copy folder `totp-me/for-lcrypto-j2me/` contents to `lcrypto-j2me` folder.
+
+Correct the lcrypto-j2me version number in `pom.xml` files
+* `lcrypto-j2me/pom.xml`: find `<version>1.56</version>`
+* `totp-me/pom.xml`: find `<artifactId>lcrypto-j2me</artifactId>` .. `<version>1.56</version>`
+
+Install [Maven](https://maven.apache.org).
+
+Build and install lcrypto-j2me
+
+	$ cd lcrypto-j2me
+	$ mvn clean install
+
+Build totp-me
+
+	$ cd ../totp-me
 	$ mvn clean package
 
 This default build uses Microemulator API implementation to simplify the build process, but it's only MIDP-2.0
