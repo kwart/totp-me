@@ -22,6 +22,7 @@
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<microemulator.version>2.0.4</microemulator.version>
+		<lcrypto.version>1.60</lcrypto.version>
 
 		<midlet.vendor>${project.organization.name}</midlet.vendor>
 		<midlet.name>${project.name}</midlet.name>
@@ -44,7 +45,7 @@
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>lcrypto-j2me</artifactId>
-			<version>1.56</version>
+			<version>${lcrypto.version}</version>
 		</dependency>
 
 		<dependency>

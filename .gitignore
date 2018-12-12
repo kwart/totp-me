@@ -4,3 +4,5 @@ target/
 .project
 .classpath
 .settings/
+
+lcrypto-j2me*
