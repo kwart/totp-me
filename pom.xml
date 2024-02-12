@@ -5,33 +5,27 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.jboss.totp</groupId>
-	<artifactId>totp-me</artifactId>
+	<groupId>cz.cacek.test</groupId>
+	<artifactId>test</artifactId>
 	<version>1.9</version>
 	<packaging>jar</packaging>
 
-	<name>TOTP ME</name>
-	<url>https://github.com/kwart/totp-me</url>
-
-	<organization>
-		<name>Josef Cacek</name>
-	</organization>
+	<name>Test</name>
 
 	<properties>
 		<version.suffix>-SNAPSHOT</version.suffix>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<microemulator.version>2.0.4</microemulator.version>
-		<lcrypto.version>1.60</lcrypto.version>
 
-		<midlet.vendor>${project.organization.name}</midlet.vendor>
 		<midlet.name>${project.name}</midlet.name>
 		<midlet.version>${project.version}</midlet.version>
-		<obfuscate>true</obfuscate>
-		<proguard>true</proguard>
+		<obfuscate>false</obfuscate>
+		<proguard>false</proguard>
 
 		<midlet.configuration>CLDC-1.0</midlet.configuration>
 		<midlet.profile>MIDP-1.0</midlet.profile>
+		<midlet.vendor>Santa Claus</midlet.vendor>
 	</properties>
 
 	<dependencies>
@@ -40,12 +34,6 @@
 			<artifactId>microemulator</artifactId>
 			<version>${microemulator.version}</version>
 			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.bouncycastle</groupId>
-			<artifactId>lcrypto-j2me</artifactId>
-			<version>${lcrypto.version}</version>
 		</dependency>
 
 		<dependency>
@@ -100,7 +88,7 @@
 							<MIDlet>
 								<name>${midlet.name}</name>
 								<icon>/lock16.png</icon>
-								<class>org.jboss.totp.TOTPMIDlet</class>
+								<class>cz.cacek.test.TestMIDlet</class>
 							</MIDlet>
 						</midlets>
 					</configuration>
@@ -285,12 +273,5 @@
 			</build>
 		</profile>
 	</profiles>
-
-	<distributionManagement>
-		<site>
-			<id>totpme.sf.net</id>
-			<url>sftp://web.sourceforge.net/home/project-web/totpme/htdocs</url>
-		</site>
-	</distributionManagement>
 
 </project>
