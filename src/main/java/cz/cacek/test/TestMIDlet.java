@@ -128,7 +128,7 @@ public class TestMIDlet extends MIDlet implements CommandListener {
      */
     private byte[] loadRecordFromStore(final String storeName) {
         RecordStore tmpRS = null;
-        byte[] value = EMPTY_BYTE_ARRAY;
+        byte[] value = null;
         try {
             tmpRS = RecordStore.openRecordStore(storeName, false);
             if (tmpRS.getNumRecords() > 0) {
@@ -148,7 +148,7 @@ public class TestMIDlet extends MIDlet implements CommandListener {
                 }
             }
         }
-        return value;
+        return value == null ? EMPTY_BYTE_ARRAY : value;
     }
 
     /**
